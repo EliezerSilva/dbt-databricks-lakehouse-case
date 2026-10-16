@@ -6,11 +6,43 @@ originalmente desenvolvido com PySpark, Delta Lake e arquitetura Medallion.
 
 ## Estado atual
 
-A implementação original está preservada neste repositório como base de referência.
-O ambiente local de desenvolvimento com dbt Core e dbt-databricks foi preparado.
+A implementação PySpark original está preservada neste repositório como baseline de comparação.
+O dbt lê as tabelas originais (`workspace.silver`, `workspace.gold`) e escreve somente em schemas isolados.
 
-A implementação dos modelos SQL com dbt, testes automatizados, documentação
-e reconciliação com as tabelas originais está em desenvolvimento.
+| Componente | Status |
+|---|---|
+| Projeto dbt Core em `dbt/` (dbt-databricks, SQL Warehouse serverless, OAuth U2M) | Implementado |
+| `stg_canais` — view em `workspace.dbt_staging` | Implementado |
+| `dim_canal` — table em `workspace.dbt_gold` | Implementado, testado e reconciliado com `workspace.gold.dim_canal` |
+| Demais dimensões, fato e métricas | Não iniciado |
+
+Detalhes da primeira dimensão: [docs/dbt/dim_canal.md](docs/dbt/dim_canal.md).
+
+### Execução do dbt
+
+O perfil fica fora do repositório, em `~/.dbt/profiles.yml`:
+
+```yaml
+lakehouse_case:
+  target: dev
+  outputs:
+    dev:
+      type: databricks
+      host: <workspace-host>
+      http_path: /sql/1.0/warehouses/<warehouse-id>
+      catalog: workspace
+      schema: dbt
+      auth_type: oauth
+      threads: 1
+```
+
+```bash
+cd dbt
+dbt debug
+dbt run
+dbt test
+dbt docs generate
+```
 
 ## Objetivo da modernização
 
