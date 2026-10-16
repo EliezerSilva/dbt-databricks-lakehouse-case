@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: dim_canal
+    description: Dimensao de canais. Paridade com workspace.gold.dim_canal (PySpark).
+    columns:
+      - name: sk_canal
+        description: sha2(canal_id, 256) sobre o valor cru, sem normalizacao.
+        data_tests:
+          - unique
+          - not_null
+      - name: canal_id
+        data_tests:
+          - unique
+          - not_null
+      - name: nome_canal
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: tipo_canal
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Direto", "Indireto", "Digital"]
+      - name: ativo
+        data_tests:
+          - not_null:
+              config:
+                severity: warn

@@ -1,0 +1,19 @@
+name: lakehouse_case
+version: "0.1.0"
+config-version: 2
+profile: lakehouse_case
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  lakehouse_case:
+    staging:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: gold
+      +materialized: table

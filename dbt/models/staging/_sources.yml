@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+  - name: silver
+    description: Silver PySpark original (somente leitura).
+    database: workspace
+    schema: silver
+    tables:
+      - name: silver_canais
+        columns:
+          - name: id_canal
+            data_tests:
+              - not_null
+              - unique:
+                  config:
+                    severity: warn
+
+  - name: pyspark_gold
+    description: Gold PySpark original, baseline de reconciliacao (somente leitura).
+    database: workspace
+    schema: gold
+    tables:
+      - name: dim_canal
