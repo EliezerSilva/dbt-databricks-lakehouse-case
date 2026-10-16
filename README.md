@@ -1,3 +1,30 @@
+# dbt + Databricks Lakehouse Case
+
+Este repositório acompanha a evolução do projeto
+[Databricks Lakehouse Case](https://github.com/EliezerSilva/databricks-lakehouse-case),
+originalmente desenvolvido com PySpark, Delta Lake e arquitetura Medallion.
+
+## Estado atual
+
+A implementação original está preservada neste repositório como base de referência.
+O ambiente local de desenvolvimento com dbt Core e dbt-databricks foi preparado.
+
+A implementação dos modelos SQL com dbt, testes automatizados, documentação
+e reconciliação com as tabelas originais está em desenvolvimento.
+
+## Objetivo da modernização
+
+Introduzir dbt nas transformações relacionais das camadas Silver e Gold,
+mantendo PySpark nas etapas de ingestão e nos processamentos em que seu uso
+for tecnicamente justificado.
+
+As novas transformações serão validadas contra os resultados existentes
+antes de qualquer substituição.
+
+---
+
+## Documentação da implementação original
+
 # Lakehouse Case — Engenharia de Dados
 
 Case técnico sobre Databricks Community Edition. Cobre ingestão, tratamento e modelagem analítica a partir de 9 fontes heterogêneas.
@@ -169,4 +196,3 @@ Cada notebook é autocontido. O `%run ../00_setup` no topo injeta os helpers e p
 - Ingestão incremental com MERGE e controle de watermark
 - Orquestração via Databricks Workflows
 - Unity Catalog para governança e lineage
-# dbt-databricks-lakehouse-case
