@@ -1,5 +1,67 @@
 # dbt + Databricks Lakehouse Case
 
+<!-- DAB-DEV-STATUS-2026 -->
+
+## Implantacao atual — Databricks Asset Bundles
+
+Este projeto combina PySpark, Delta Lake, Unity Catalog,
+Databricks Asset Bundles (DAB) e dbt Core.
+
+### Estado validado em 23/10/2026
+
+| Componente | Situacao |
+|---|---|
+| Databricks Asset Bundles | 14 Jobs sincronizados |
+| Bronze | 4 Jobs de ingestao executados com sucesso |
+| Silver — Pedidos | 400 registros validados |
+| Silver — Itens | 992 registros, 992 chaves unicas |
+| Silver — Cadastros e JSON | Pendentes nesta implantacao |
+| Gold | Pendente de validacao nesta implantacao |
+| Data Quality | 9 regras SQL verificadas |
+| Observabilidade | Dashboard nativo Databricks |
+
+### Estrutura DAB
+
+- databricks.yml: configuracao declarativa e parametros DEV.
+- resources/: definicoes dos Jobs e validacoes.
+- notebooks/: ingestao, transformacoes e controles.
+- tests/: testes de isolamento e configuracao.
+
+O ambiente DEV utiliza o catalogo workspace e os schemas
+bronze_dev, silver_dev, gold_dev e control_dev.
+
+### Implantacao e controle
+
+A validacao do Bundle utiliza os comandos:
+databricks bundle validate e databricks bundle plan.
+
+As cargas Silver iniciais possuem protecao contra reprocessamento.
+A ingestao incremental e a homologacao completa da Gold
+continuam como evolucoes previstas.
+
+### Data Quality
+
+A Silver de itens registrou:
+- 3 duplicatas removidas;
+- 45 divergencias financeiras corrigidas;
+- 31 precos unitarios nulos identificados;
+- 256 status nao informados;
+- nenhuma duplicidade de chave remanescente.
+
+[Dashboard de Operacoes e Data Quality](https://dbc-7b3b829c-38e5.cloud.databricks.com/sql/dashboardsv3/01f1cee3f8ab145f87be310388702b89?o=7474651842529377)
+
+### Modernizacao com dbt Core
+
+A frente dbt permanece separada da implantacao DAB.
+O objetivo e modernizar transformacoes relacionais
+mantendo a implementacao PySpark como referencia.
+
+A documentacao abaixo preserva o historico e o baseline original.
+
+---
+
+
+
 Este repositório acompanha a evolução do projeto
 [Databricks Lakehouse Case](https://github.com/EliezerSilva/databricks-lakehouse-case),
 originalmente desenvolvido com PySpark, Delta Lake e arquitetura Medallion.
