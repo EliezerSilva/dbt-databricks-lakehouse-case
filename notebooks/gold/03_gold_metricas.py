@@ -7,13 +7,13 @@ from pyspark.sql import functions as F
 
 # COMMAND ----------
 
-fato = spark.read.table("gold.fato_pedidos")
-dim_data = spark.read.table("gold.dim_data")
-dim_cliente = spark.read.table("gold.dim_cliente")
-dim_produto = spark.read.table("gold.dim_produto")
-dim_canal = spark.read.table("gold.dim_canal")
-dim_regiao = spark.read.table("gold.dim_regiao")
-dim_vendedor = spark.read.table("gold.dim_vendedor")
+fato = spark.read.table(f"{GOLD_SCHEMA}.fato_pedidos")
+dim_data = spark.read.table(f"{GOLD_SCHEMA}.dim_data")
+dim_cliente = spark.read.table(f"{GOLD_SCHEMA}.dim_cliente")
+dim_produto = spark.read.table(f"{GOLD_SCHEMA}.dim_produto")
+dim_canal = spark.read.table(f"{GOLD_SCHEMA}.dim_canal")
+dim_regiao = spark.read.table(f"{GOLD_SCHEMA}.dim_regiao")
+dim_vendedor = spark.read.table(f"{GOLD_SCHEMA}.dim_vendedor")
 
 fato_enriquecido = (
     fato
@@ -39,7 +39,7 @@ def write_gold_metric(df, table_name):
         .format("delta")
         .mode("overwrite")
         .option("overwriteSchema", "true")
-        .saveAsTable(f"gold.{table_name}")
+        .saveAsTable(f"{GOLD_SCHEMA}.{table_name}")
     )
     print(f"gold.{table_name}: {df.count()} rows")
 

@@ -17,22 +17,27 @@ from pyspark.sql.types import (
 
 # COMMAND ----------
 
-# DBTITLE 1,Storage path
-SOURCE_ROOT = "/Volumes/workspace/lakehouse_case/sources"
+# MAGIC %run ./00_runtime_config
+
+# COMMAND ----------
+
+spark.sql(f"USE CATALOG `{CATALOG}`")
+print(f"Active catalog: {CATALOG}")
+print(f"Source root: {SOURCE_ROOT}")
 
 # COMMAND ----------
 
 # DBTITLE 1,Create schemas
-spark.sql("CREATE SCHEMA IF NOT EXISTS bronze")
-spark.sql("CREATE SCHEMA IF NOT EXISTS silver")
-spark.sql("CREATE SCHEMA IF NOT EXISTS gold")
-spark.sql("CREATE SCHEMA IF NOT EXISTS control")
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{BRONZE_SCHEMA}`")
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{SILVER_SCHEMA}`")
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{GOLD_SCHEMA}`")
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{CONTROL_SCHEMA}`")
 
 # COMMAND ----------
 
 # DBTITLE 1,Control and quality tables
-spark.sql("""
-    CREATE TABLE IF NOT EXISTS control.ingestion_log (
+spark.sql(f"""
+    CREATE TABLE IF NOT EXISTS {CONTROL_SCHEMA}.ingestion_log (
         source_file                   STRING    COMMENT 'arquivo de origem',
         target_table                  STRING    COMMENT 'tabela bronze de destino',
         records_loaded                LONG      COMMENT '0 quando status=NOK',
@@ -48,8 +53,8 @@ spark.sql("""
     USING DELTA
 """)
 
-spark.sql("""
-    CREATE TABLE IF NOT EXISTS silver.quality_log (
+spark.sql(f"""
+    CREATE TABLE IF NOT EXISTS {SILVER_SCHEMA}.quality_log (
         processing_timestamp  TIMESTAMP,
         source_table          STRING,
         check_name            STRING,
@@ -60,8 +65,8 @@ spark.sql("""
 """)
 
 # payload serializado — esquema genérico para não proliferar tabelas por domínio
-spark.sql("""
-    CREATE TABLE IF NOT EXISTS silver.tabelas_invalidas (
+spark.sql(f"""
+    CREATE TABLE IF NOT EXISTS {SILVER_SCHEMA}.tabelas_invalidas (
         processing_timestamp  TIMESTAMP,
         source_table          STRING,
         motivo                STRING,
@@ -70,8 +75,8 @@ spark.sql("""
     USING DELTA
 """)
 
-spark.sql("""
-    CREATE TABLE IF NOT EXISTS silver.tabelas_orfas (
+spark.sql(f"""
+    CREATE TABLE IF NOT EXISTS {SILVER_SCHEMA}.tabelas_orfas (
         processing_timestamp  TIMESTAMP,
         source_table          STRING,
         join_key_name         STRING,
@@ -127,7 +132,7 @@ def derive_reference_date(filename):
 def check_already_loaded(source_file, target_table):
     """Returns True if a successful load already exists for this source/target pair."""
     n = spark.sql(f"""
-        SELECT COUNT(1) AS n FROM control.ingestion_log
+        SELECT COUNT(1) AS n FROM {CONTROL_SCHEMA}.ingestion_log
         WHERE source_file  = '{source_file}'
           AND target_table = '{target_table}'
           AND status = 'OK'
@@ -135,6 +140,61 @@ def check_already_loaded(source_file, target_table):
     if n > 0:
         print(f"[RERUN] {source_file} → {target_table}")
     return n > 0
+
+def should_process_bronze(source_file, table_name):
+    """Verifica se uma fonte Bronze DEV pode ser processada."""
+
+    target = f"{BRONZE_SCHEMA}.{table_name}"
+    source_mtime = get_file_last_modified(source_file)
+
+    if source_mtime is None:
+        raise RuntimeError(
+            f"Origem ausente ou sem metadados: {source_file}"
+        )
+
+    already_loaded = check_already_loaded(
+        source_file, target
+    )
+
+    table_exists = spark.catalog.tableExists(target)
+
+    if already_loaded:
+        if not table_exists:
+            raise RuntimeError(
+                f"Log OK existe, mas tabela está ausente: {target}"
+            )
+
+        history = (
+            spark.table(f"{CONTROL_SCHEMA}.ingestion_log")
+            .filter(
+                (F.col("source_file") == source_file)
+                & (F.col("target_table") == target)
+                & (F.col("status") == "OK")
+            )
+            .select("source_file_last_modified")
+            .collect()
+        )
+
+        if not history or any(
+            row["source_file_last_modified"] is None
+            or row["source_file_last_modified"] != source_mtime
+            for row in history
+        ):
+            raise RuntimeError(
+                f"Histórico inconsistente ou origem alterada: {target}"
+            )
+
+        print(f"[SKIP] Carga já concluída: {target}")
+        return False
+
+    if table_exists:
+        raise RuntimeError(
+            f"Tabela existe sem histórico OK: {target}. "
+            "Investigar antes de sobrescrever."
+        )
+
+    return True
+
 
 def add_bronze_cols(df, source_name, pipeline_ts):
     """Adds standard lineage columns to a Bronze DataFrame."""
@@ -152,7 +212,7 @@ def write_bronze_table(df, table_name):
         .format("delta")
         .mode("overwrite")
         .option("overwriteSchema", "true")
-        .saveAsTable(f"bronze.{table_name}")
+        .saveAsTable(f"{BRONZE_SCHEMA}.{table_name}")
     )
     n = df.count()
     print(f"bronze.{table_name}: {n} rows")
@@ -212,7 +272,7 @@ def log_ingestion(source_file, target_table, records_loaded,
     (
         spark.createDataFrame(row, _LOG_SCHEMA)
         .write.format("delta").mode("append")
-        .saveAsTable("control.ingestion_log")
+        .saveAsTable(f"{CONTROL_SCHEMA}.ingestion_log")
     )
 
 def log_quality(source_table, check_name, records_affected, message):
@@ -223,7 +283,7 @@ def log_quality(source_table, check_name, records_affected, message):
     (
         spark.createDataFrame(row, _QUALITY_LOG_SCHEMA)
         .write.format("delta").mode("append")
-        .saveAsTable("silver.quality_log")
+        .saveAsTable(f"{SILVER_SCHEMA}.quality_log")
     )
 
 def write_invalidos(df, source_table, motivo):
@@ -235,7 +295,7 @@ def write_invalidos(df, source_table, motivo):
           .withColumn("payload",              F.to_json(F.struct([F.col(c) for c in df.columns])))
           .select("processing_timestamp", "source_table", "motivo", "payload")
           .write.format("delta").mode("append")
-          .saveAsTable("silver.tabelas_invalidas")
+          .saveAsTable(f"{SILVER_SCHEMA}.tabelas_invalidas")
     )
 
 def write_orfaos(df, source_table, join_key_name, join_key_col):
@@ -248,7 +308,7 @@ def write_orfaos(df, source_table, join_key_name, join_key_col):
           .withColumn("payload",              F.to_json(F.struct([F.col(c) for c in df.columns])))
           .select("processing_timestamp", "source_table", "join_key_name", "join_key_value", "payload")
           .write.format("delta").mode("append")
-          .saveAsTable("silver.tabelas_orfas")
+          .saveAsTable(f"{SILVER_SCHEMA}.tabelas_orfas")
     )
 
 # COMMAND ----------

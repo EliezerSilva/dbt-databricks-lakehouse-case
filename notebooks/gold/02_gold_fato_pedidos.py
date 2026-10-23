@@ -15,23 +15,23 @@ _t0 = datetime.datetime.utcnow()
 # COMMAND ----------
 
 cab = (
-    spark.read.table("silver.silver_pedidos_cabecalho")
+    spark.read.table(f"{SILVER_SCHEMA}.silver_pedidos_cabecalho")
     .drop("processing_timestamp")
 )
 
 itens = (
-    spark.read.table("silver.silver_pedidos_itens")
+    spark.read.table(f"{SILVER_SCHEMA}.silver_pedidos_itens")
     .drop("processing_timestamp")
 )
-logistica = spark.read.table("silver.silver_logistica")
-ocorrencias = spark.read.table("silver.silver_atendimento_ocorrencias")
+logistica = spark.read.table(f"{SILVER_SCHEMA}.silver_logistica")
+ocorrencias = spark.read.table(f"{SILVER_SCHEMA}.silver_atendimento_ocorrencias")
 
-dim_cliente = spark.read.table("gold.dim_cliente")
-dim_produto = spark.read.table("gold.dim_produto")
-dim_canal = spark.read.table("gold.dim_canal")
-dim_regiao = spark.read.table("gold.dim_regiao")
-dim_vendedor = spark.read.table("gold.dim_vendedor")
-dim_data = spark.read.table("gold.dim_data")
+dim_cliente = spark.read.table(f"{GOLD_SCHEMA}.dim_cliente")
+dim_produto = spark.read.table(f"{GOLD_SCHEMA}.dim_produto")
+dim_canal = spark.read.table(f"{GOLD_SCHEMA}.dim_canal")
+dim_regiao = spark.read.table(f"{GOLD_SCHEMA}.dim_regiao")
+dim_vendedor = spark.read.table(f"{GOLD_SCHEMA}.dim_vendedor")
+dim_data = spark.read.table(f"{GOLD_SCHEMA}.dim_data")
 
 # COMMAND ----------
 
@@ -52,7 +52,7 @@ if n_orfaos > 0:
         "fato_pedidos",
         "itens_sem_cabecalho",
         n_orfaos,
-        "itens com order_id sem cabeçalho — isolados em silver.tabelas_orfas"
+        f"itens com order_id sem cabeçalho — isolados em {SILVER_SCHEMA}.tabelas_orfas"
     )
 
 pedidos = pedidos_joined.filter(F.col("status_order").isNotNull())
@@ -200,12 +200,12 @@ fato_pedidos = (
     .mode("overwrite")
     .option("overwriteSchema", "true")
     .partitionBy("status_order")
-    .saveAsTable("gold.fato_pedidos")
+    .saveAsTable(f"{GOLD_SCHEMA}.fato_pedidos")
 )
 
 total = fato_pedidos.count()
 elapsed = round((datetime.datetime.utcnow() - _t0).total_seconds(), 1)
-print(f"gold.fato_pedidos: {total} rows | {elapsed}s")
+print(f"{GOLD_SCHEMA}.fato_pedidos: {total} rows | {elapsed}s")
 
 # COMMAND ----------
 

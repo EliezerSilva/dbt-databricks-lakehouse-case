@@ -1,235 +1,254 @@
 # Databricks notebook source
-# MAGIC %sql
-# MAGIC --01 — TABELAS GOLD
-# MAGIC --Evidência da camada analítica final
-# MAGIC
-# MAGIC SHOW TABLES IN gold;
+# MAGIC %run ../00_setup
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 02 — QUALITY LOG
-# MAGIC -- Evidência principal de governança e tratamento
-# MAGIC SELECT
-# MAGIC     source_table,
-# MAGIC     check_name,
-# MAGIC     records_affected,
-# MAGIC     message,
-# MAGIC     processing_timestamp
-# MAGIC FROM silver.quality_log
-# MAGIC ORDER BY processing_timestamp DESC;
+display(spark.sql(f"""
+--01 — TABELAS GOLD
+--Evidência da camada analítica final
+
+SHOW TABLES IN {GOLD_SCHEMA};
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 03 — RESUMO DO QUALITY LOG
-# MAGIC -- Quantidade total de problemas tratados
-# MAGIC SELECT
-# MAGIC     source_table,
-# MAGIC     COUNT(*) AS total_checks,
-# MAGIC     SUM(records_affected) AS total_registros_afetados
-# MAGIC FROM silver.quality_log
-# MAGIC GROUP BY source_table
-# MAGIC ORDER BY total_registros_afetados DESC;
+display(spark.sql(f"""
+-- 02 — QUALITY LOG
+-- Evidência principal de governança e tratamento
+SELECT
+    source_table,
+    check_name,
+    records_affected,
+    message,
+    processing_timestamp
+FROM {SILVER_SCHEMA}.quality_log
+ORDER BY processing_timestamp DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 04 — DETECÇÃO DE REPLAY / DUPLICIDADE
-# MAGIC -- Evidência do troubleshooting realizado
-# MAGIC SELECT
-# MAGIC     order_id,
-# MAGIC     COUNT(*) AS qtd
-# MAGIC FROM silver.silver_pedidos_cabecalho
-# MAGIC GROUP BY order_id
-# MAGIC HAVING COUNT(*) > 1;
+display(spark.sql(f"""
+-- 03 — RESUMO DO QUALITY LOG
+-- Quantidade total de problemas tratados
+SELECT
+    source_table,
+    COUNT(*) AS total_checks,
+    SUM(records_affected) AS total_registros_afetados
+FROM {SILVER_SCHEMA}.quality_log
+GROUP BY source_table
+ORDER BY total_registros_afetados DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 05 — GRANULARIDADE DA FATO
-# MAGIC -- Validação de grain
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT concat(order_id, '-', item_seq)) granularidade
-# MAGIC FROM gold.fato_pedidos;
+display(spark.sql(f"""
+-- 04 — DETECÇÃO DE REPLAY / DUPLICIDADE
+-- Evidência do troubleshooting realizado
+SELECT
+    order_id,
+    COUNT(*) AS qtd
+FROM {SILVER_SCHEMA}.silver_pedidos_cabecalho
+GROUP BY order_id
+HAVING COUNT(*) > 1;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 06 — VOLUME DA FATO
-# MAGIC
-# MAGIC SELECT COUNT(*) AS total_fato
-# MAGIC FROM gold.fato_pedidos;
+display(spark.sql(f"""
+-- 05 — GRANULARIDADE DA FATO
+-- Validação de grain
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT concat(order_id, '-', item_seq)) granularidade
+FROM {GOLD_SCHEMA}.fato_pedidos;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 07 — INTEGRIDADE DAS DIMENSÕES
-# MAGIC -- Surrogate keys únicas
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT sk_cliente) sk_distintas
-# MAGIC FROM gold.dim_cliente;
+display(spark.sql(f"""
+-- 06 — VOLUME DA FATO
+
+SELECT COUNT(*) AS total_fato
+FROM {GOLD_SCHEMA}.fato_pedidos;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT sk_produto) sk_distintas
-# MAGIC FROM gold.dim_produto;
+display(spark.sql(f"""
+-- 07 — INTEGRIDADE DAS DIMENSÕES
+-- Surrogate keys únicas
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT sk_cliente) sk_distintas
+FROM {GOLD_SCHEMA}.dim_cliente;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT sk_data) sk_distintas
-# MAGIC FROM gold.dim_data;
+display(spark.sql(f"""
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT sk_produto) sk_distintas
+FROM {GOLD_SCHEMA}.dim_produto;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 08 — RECEITA POR PERÍODO
-# MAGIC -- Evidência da camada executiva
-# MAGIC SELECT
-# MAGIC     ano_mes,
-# MAGIC     receita_bruta,
-# MAGIC     receita_liquida,
-# MAGIC     total_descontos,
-# MAGIC     ticket_medio
-# MAGIC FROM gold.metricas_por_periodo
-# MAGIC ORDER BY ano_mes;
+display(spark.sql(f"""
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT sk_data) sk_distintas
+FROM {GOLD_SCHEMA}.dim_data;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 09 — MÉTRICAS OPERACIONAIS
-# MAGIC -- Cancelamento e atraso
-# MAGIC SELECT
-# MAGIC     ano_mes,
-# MAGIC     nome_regiao,
-# MAGIC     nome_canal,
-# MAGIC     taxa_cancelamento_pct,
-# MAGIC     taxa_atraso_pct
-# MAGIC FROM gold.metricas_operacionais
-# MAGIC ORDER BY ano_mes
-# MAGIC LIMIT 30;
+display(spark.sql(f"""
+-- 08 — RECEITA POR PERÍODO
+-- Evidência da camada executiva
+SELECT
+    ano_mes,
+    receita_bruta,
+    receita_liquida,
+    total_descontos,
+    ticket_medio
+FROM {GOLD_SCHEMA}.metricas_por_periodo
+ORDER BY ano_mes;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 10 — SEMANTIC LAYER
-# MAGIC -- Evidência da view analítica
-# MAGIC SELECT
-# MAGIC     order_id,
-# MAGIC     nome_cliente,
-# MAGIC     nome_produto,
-# MAGIC     nome_canal,
-# MAGIC     nome_regiao,
-# MAGIC     receita_liquida_item,
-# MAGIC     status_order,
-# MAGIC     status_entrega
-# MAGIC FROM gold.vw_pedidos_analytics
-# MAGIC LIMIT 20;
+display(spark.sql(f"""
+-- 09 — MÉTRICAS OPERACIONAIS
+-- Cancelamento e atraso
+SELECT
+    ano_mes,
+    nome_regiao,
+    nome_canal,
+    taxa_cancelamento_pct,
+    taxa_atraso_pct
+FROM {GOLD_SCHEMA}.metricas_operacionais
+ORDER BY ano_mes
+LIMIT 30;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 11 — INTEGRIDADE DA SEMANTIC LAYER
-# MAGIC SELECT
-# MAGIC     COUNT(CASE WHEN nome_cliente IS NULL THEN 1 END) AS sem_cliente,
-# MAGIC     COUNT(CASE WHEN nome_produto IS NULL THEN 1 END) AS sem_produto,
-# MAGIC     COUNT(CASE WHEN nome_canal IS NULL THEN 1 END) AS sem_canal,
-# MAGIC     COUNT(CASE WHEN nome_regiao IS NULL THEN 1 END) AS sem_regiao,
-# MAGIC     COUNT(CASE WHEN ano IS NULL THEN 1 END) AS sem_data
-# MAGIC FROM gold.vw_pedidos_analytics;
+display(spark.sql(f"""
+-- 10 — SEMANTIC LAYER
+-- Evidência da view analítica
+SELECT
+    order_id,
+    nome_cliente,
+    nome_produto,
+    nome_canal,
+    nome_regiao,
+    receita_liquida_item,
+    status_order,
+    status_entrega
+FROM {GOLD_SCHEMA}.vw_pedidos_analytics
+LIMIT 20;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 12 — DIMENSÃO CALENDÁRIO
-# MAGIC -- Cobertura temporal
-# MAGIC SELECT
-# MAGIC     MIN(data) AS data_min,
-# MAGIC     MAX(data) AS data_max
-# MAGIC FROM gold.dim_data;
+display(spark.sql(f"""
+-- 11 — INTEGRIDADE DA SEMANTIC LAYER
+SELECT
+    COUNT(CASE WHEN nome_cliente IS NULL THEN 1 END) AS sem_cliente,
+    COUNT(CASE WHEN nome_produto IS NULL THEN 1 END) AS sem_produto,
+    COUNT(CASE WHEN nome_canal IS NULL THEN 1 END) AS sem_canal,
+    COUNT(CASE WHEN nome_regiao IS NULL THEN 1 END) AS sem_regiao,
+    COUNT(CASE WHEN ano IS NULL THEN 1 END) AS sem_data
+FROM {GOLD_SCHEMA}.vw_pedidos_analytics;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 13 — TOP PRODUTOS
-# MAGIC -- Exemplo analítico final
-# MAGIC SELECT
-# MAGIC     nome_produto,
-# MAGIC     categoria,
-# MAGIC     SUM(receita_liquida_item) AS receita
-# MAGIC FROM gold.vw_pedidos_analytics
-# MAGIC GROUP BY nome_produto, categoria
-# MAGIC ORDER BY receita DESC
-# MAGIC LIMIT 20;
+display(spark.sql(f"""
+-- 12 — DIMENSÃO CALENDÁRIO
+-- Cobertura temporal
+SELECT
+    MIN(data) AS data_min,
+    MAX(data) AS data_max
+FROM {GOLD_SCHEMA}.dim_data;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 14 - RESUMO EXECUTIVO DO PIPELINE
-# MAGIC
-# MAGIC WITH fato AS (
-# MAGIC     SELECT COUNT(*) AS total_fato
-# MAGIC     FROM gold.fato_pedidos
-# MAGIC ),
-# MAGIC
-# MAGIC granularidade AS (
-# MAGIC     SELECT
-# MAGIC         COUNT(DISTINCT concat(order_id, '-', item_seq)) AS granularidade
-# MAGIC     FROM gold.fato_pedidos
-# MAGIC ),
-# MAGIC
-# MAGIC clientes AS (
-# MAGIC     SELECT COUNT(*) AS total_clientes
-# MAGIC     FROM gold.dim_cliente
-# MAGIC ),
-# MAGIC
-# MAGIC produtos AS (
-# MAGIC     SELECT COUNT(*) AS total_produtos
-# MAGIC     FROM gold.dim_produto
-# MAGIC ),
-# MAGIC
-# MAGIC receita AS (
-# MAGIC     SELECT
-# MAGIC         ROUND(SUM(receita_liquida), 2) AS receita_total
-# MAGIC     FROM gold.metricas_por_periodo
-# MAGIC ),
-# MAGIC
-# MAGIC quality AS (
-# MAGIC     SELECT
-# MAGIC         COUNT(*) AS total_checks,
-# MAGIC         SUM(records_affected) AS registros_tratados
-# MAGIC     FROM silver.quality_log
-# MAGIC ),
-# MAGIC
-# MAGIC semantic AS (
-# MAGIC     SELECT COUNT(*) AS registros_analytics
-# MAGIC     FROM gold.vw_pedidos_analytics
-# MAGIC )
-# MAGIC
-# MAGIC SELECT
-# MAGIC     f.total_fato,
-# MAGIC     g.granularidade,
-# MAGIC     c.total_clientes,
-# MAGIC     p.total_produtos,
-# MAGIC     r.receita_total,
-# MAGIC     q.total_checks,
-# MAGIC     q.registros_tratados,
-# MAGIC     s.registros_analytics
-# MAGIC FROM fato f
-# MAGIC CROSS JOIN granularidade g
-# MAGIC CROSS JOIN clientes c
-# MAGIC CROSS JOIN produtos p
-# MAGIC CROSS JOIN receita r
-# MAGIC CROSS JOIN quality q
-# MAGIC CROSS JOIN semantic s;
+display(spark.sql(f"""
+-- 13 — TOP PRODUTOS
+-- Exemplo analítico final
+SELECT
+    nome_produto,
+    categoria,
+    SUM(receita_liquida_item) AS receita
+FROM {GOLD_SCHEMA}.vw_pedidos_analytics
+GROUP BY nome_produto, categoria
+ORDER BY receita DESC
+LIMIT 20;
+"""))
 
 # COMMAND ----------
 
+display(spark.sql(f"""
+-- 14 - RESUMO EXECUTIVO DO PIPELINE
+
+WITH fato AS (
+    SELECT COUNT(*) AS total_fato
+    FROM {GOLD_SCHEMA}.fato_pedidos
+),
+
+granularidade AS (
+    SELECT
+        COUNT(DISTINCT concat(order_id, '-', item_seq)) AS granularidade
+    FROM {GOLD_SCHEMA}.fato_pedidos
+),
+
+clientes AS (
+    SELECT COUNT(*) AS total_clientes
+    FROM {GOLD_SCHEMA}.dim_cliente
+),
+
+produtos AS (
+    SELECT COUNT(*) AS total_produtos
+    FROM {GOLD_SCHEMA}.dim_produto
+),
+
+receita AS (
+    SELECT
+        ROUND(SUM(receita_liquida), 2) AS receita_total
+    FROM {GOLD_SCHEMA}.metricas_por_periodo
+),
+
+quality AS (
+    SELECT
+        COUNT(*) AS total_checks,
+        SUM(records_affected) AS registros_tratados
+    FROM {SILVER_SCHEMA}.quality_log
+),
+
+semantic AS (
+    SELECT COUNT(*) AS registros_analytics
+    FROM {GOLD_SCHEMA}.vw_pedidos_analytics
+)
+
+SELECT
+    f.total_fato,
+    g.granularidade,
+    c.total_clientes,
+    p.total_produtos,
+    r.receita_total,
+    q.total_checks,
+    q.registros_tratados,
+    s.registros_analytics
+FROM fato f
+CROSS JOIN granularidade g
+CROSS JOIN clientes c
+CROSS JOIN produtos p
+CROSS JOIN receita r
+CROSS JOIN quality q
+CROSS JOIN semantic s;
+"""))
+
+# COMMAND ----------

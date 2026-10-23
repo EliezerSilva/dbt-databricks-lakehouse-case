@@ -1,0 +1,31 @@
+resources:
+  jobs:
+    dab_cadastros_preflight:
+      name: dab-cadastros-preflight-${bundle.target}
+      max_concurrent_runs: 1
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: source_root
+          default: ${var.source_root}
+        - name: bronze_schema
+          default: ${var.bronze_schema}
+        - name: silver_schema
+          default: ${var.silver_schema}
+        - name: gold_schema
+          default: ${var.gold_schema}
+        - name: control_schema
+          default: ${var.control_schema}
+      tasks:
+        - task_key: cadastros_preflight
+          environment_key: probe_runtime
+          notebook_task:
+            notebook_path: ../notebooks/troubleshooting/89_dab_cadastros_preflight.py
+            source: WORKSPACE
+      environments:
+        - environment_key: probe_runtime
+          spec:
+            environment_version: "2"
+            dependencies:
+              - "pandas>=2.2,<3"
+              - "openpyxl>=3.1,<4"

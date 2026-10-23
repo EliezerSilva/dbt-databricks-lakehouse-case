@@ -1,16 +1,20 @@
 # Databricks notebook source
-# MAGIC %sql
-# MAGIC SELECT * FROM control.ingestion_log
+# MAGIC %run ../00_setup
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT * FROM silver.quality_log
+display(spark.sql(
+    f"SELECT * FROM {CONTROL_SCHEMA}.ingestion_log"
+))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT * FROM gold.vw_pedidos_analytics LIMIT 20
+display(spark.sql(
+    f"SELECT * FROM {SILVER_SCHEMA}.quality_log"
+))
 
 # COMMAND ----------
 
+display(spark.sql(
+    f"SELECT * FROM {GOLD_SCHEMA}.vw_pedidos_analytics LIMIT 20"
+))

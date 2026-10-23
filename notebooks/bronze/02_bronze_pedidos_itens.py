@@ -1,10 +1,11 @@
 # Databricks notebook source
 # DBTITLE 1,No CE é necessário executar manualmente antes do `Run all`.
-# %run ../00_setup
+# MAGIC %run ../00_setup
 
 # COMMAND ----------
 
 import datetime
+from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType
 
 # COMMAND ----------
@@ -18,7 +19,53 @@ pipeline_execution_timestamp = datetime.datetime.utcnow()
 
 # COMMAND ----------
 
-check_already_loaded(_SOURCE_FILE, f"bronze.{_TARGET_TABLE}")
+# Proteção de replay e recuperação da carga Bronze DEV.
+_target = f"{BRONZE_SCHEMA}.{_TARGET_TABLE}"
+_source_mtime = get_file_last_modified(_SOURCE_FILE)
+
+if _source_mtime is None:
+    raise RuntimeError(f"Arquivo não encontrado ou sem metadados: {_SOURCE_FILE}")
+
+_already_loaded = check_already_loaded(_SOURCE_FILE, _target)
+_table_exists = spark.catalog.tableExists(_target)
+
+if _already_loaded:
+    if not _table_exists:
+        raise RuntimeError(
+            f"Log OK encontrado, mas tabela ausente: {_target}"
+        )
+
+    _history = (
+        spark.table(f"{CONTROL_SCHEMA}.ingestion_log")
+        .filter(
+            (F.col("source_file") == _SOURCE_FILE)
+            & (F.col("target_table") == _target)
+            & (F.col("status") == "OK")
+        )
+        .select("source_file_last_modified")
+        .collect()
+    )
+
+    if not _history or any(
+        row["source_file_last_modified"] is None
+        or row["source_file_last_modified"] != _source_mtime
+        for row in _history
+    ):
+        raise RuntimeError(
+            "Arquivo alterado ou histórico inconsistente. "
+            "Reprocessamento requer avaliação explícita."
+        )
+
+    print(f"[SKIP] Carga já concluída: {_target}")
+    dbutils.notebook.exit("SKIPPED_ALREADY_LOADED")
+
+if _table_exists:
+    raise RuntimeError(
+        f"Tabela {_target} existe sem log OK. "
+        "Possível falha anterior: investigar antes de sobrescrever."
+    )
+
+
 
 # COMMAND ----------
 
@@ -29,7 +76,7 @@ val_status, val_msg, detected_schema, expected_schema = validate_csv_layout(
 if val_status != "OK":
     log_ingestion(
         source_file=_SOURCE_FILE,
-        target_table=f"bronze.{_TARGET_TABLE}",
+        target_table=f"{BRONZE_SCHEMA}.{_TARGET_TABLE}",
         records_loaded=0,
         pipeline_execution_timestamp=pipeline_execution_timestamp,
         bronze_load_timestamp=datetime.datetime.utcnow(),
@@ -68,7 +115,7 @@ df_bronze = add_bronze_cols(df_raw, _SOURCE_FILE, pipeline_execution_timestamp)
     .mode("overwrite")
     .option("overwriteSchema", "true")
     .partitionBy("ingestion_date")
-    .saveAsTable(f"bronze.{_TARGET_TABLE}")
+    .saveAsTable(f"{BRONZE_SCHEMA}.{_TARGET_TABLE}")
 )
 
 bronze_load_timestamp = datetime.datetime.utcnow()
@@ -80,7 +127,7 @@ records_loaded = df_bronze.count()
 
 log_ingestion(
     source_file=_SOURCE_FILE,
-    target_table=f"bronze.{_TARGET_TABLE}",
+    target_table=f"{BRONZE_SCHEMA}.{_TARGET_TABLE}",
     records_loaded=records_loaded,
     pipeline_execution_timestamp=pipeline_execution_timestamp,
     bronze_load_timestamp=bronze_load_timestamp,

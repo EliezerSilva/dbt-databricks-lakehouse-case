@@ -1,0 +1,34 @@
+resources:
+  jobs:
+    dab_silver_itens_first_load:
+      name: dab-silver-itens-first-load-${bundle.target}
+      max_concurrent_runs: 1
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: source_root
+          default: ${var.source_root}
+        - name: bronze_schema
+          default: ${var.bronze_schema}
+        - name: silver_schema
+          default: ${var.silver_schema}
+        - name: gold_schema
+          default: ${var.gold_schema}
+        - name: control_schema
+          default: ${var.control_schema}
+
+      tasks:
+        - task_key: silver_itens_first_load
+          environment_key: silver_runtime
+          notebook_task:
+            notebook_path: ../notebooks/silver/02_silver_pedidos_itens.py
+            source: WORKSPACE
+
+      environments:
+        - environment_key: silver_runtime
+          spec:
+            environment_version: "2"
+            dependencies:
+              - "pandas>=2.2,<3"
+              - "openpyxl>=3.1,<4"

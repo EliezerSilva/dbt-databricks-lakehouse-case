@@ -1,0 +1,28 @@
+bundle:
+  name: dbt-databricks-lakehouse-case
+
+include:
+  - resources/*.yml
+
+workspace:
+  profile: dbt-lakehouse-free
+
+variables:
+  catalog:
+    default: workspace
+  source_root:
+    default: /Volumes/workspace/lakehouse_case/sources
+
+  bronze_schema:
+    default: bronze_dev
+  silver_schema:
+    default: silver_dev
+  gold_schema:
+    default: gold_dev
+  control_schema:
+    default: control_dev
+
+targets:
+  dev:
+    mode: development
+    default: true

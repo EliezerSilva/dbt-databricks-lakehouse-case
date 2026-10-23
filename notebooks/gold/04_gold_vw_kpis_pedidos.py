@@ -3,8 +3,8 @@
 
 # COMMAND ----------
 
-spark.sql("""
-    CREATE OR REPLACE VIEW gold.vw_pedidos_analytics AS
+spark.sql(f"""
+    CREATE OR REPLACE VIEW {GOLD_SCHEMA}.vw_pedidos_analytics AS
     SELECT
         f.order_id,
         f.item_seq,
@@ -67,13 +67,13 @@ spark.sql("""
         f.flag_devolucao,
         f.order_source
 
-    FROM gold.fato_pedidos f
-    LEFT JOIN gold.dim_data     d  ON f.sk_data_pedido = d.sk_data
-    LEFT JOIN gold.dim_cliente  cl ON f.sk_cliente     = cl.sk_cliente
-    LEFT JOIN gold.dim_produto  pr ON f.sk_produto     = pr.sk_produto
-    LEFT JOIN gold.dim_canal    cn ON f.sk_canal       = cn.sk_canal
-    LEFT JOIN gold.dim_regiao   rg ON f.sk_regiao      = rg.sk_regiao
-    LEFT JOIN gold.dim_vendedor vd ON f.sk_vendedor    = vd.sk_vendedor
+    FROM {GOLD_SCHEMA}.fato_pedidos f
+    LEFT JOIN {GOLD_SCHEMA}.dim_data     d  ON f.sk_data_pedido = d.sk_data
+    LEFT JOIN {GOLD_SCHEMA}.dim_cliente  cl ON f.sk_cliente     = cl.sk_cliente
+    LEFT JOIN {GOLD_SCHEMA}.dim_produto  pr ON f.sk_produto     = pr.sk_produto
+    LEFT JOIN {GOLD_SCHEMA}.dim_canal    cn ON f.sk_canal       = cn.sk_canal
+    LEFT JOIN {GOLD_SCHEMA}.dim_regiao   rg ON f.sk_regiao      = rg.sk_regiao
+    LEFT JOIN {GOLD_SCHEMA}.dim_vendedor vd ON f.sk_vendedor    = vd.sk_vendedor
 
     WHERE f.flag_cancelado = 0
 """)
@@ -82,21 +82,21 @@ print("gold.vw_pedidos_analytics criada")
 
 # COMMAND ----------
 
-n = spark.sql("""
+n = spark.sql(f"""
     SELECT COUNT(*) AS n
-    FROM gold.vw_pedidos_analytics
+    FROM {GOLD_SCHEMA}.vw_pedidos_analytics
 """).first()["n"]
 
 print(f"vw_pedidos_analytics: {n} rows ativos")
 
-checks = spark.sql("""
+checks = spark.sql(f"""
     SELECT
         COUNT(CASE WHEN nome_cliente IS NULL THEN 1 END) AS sem_cliente,
         COUNT(CASE WHEN nome_produto IS NULL THEN 1 END) AS sem_produto,
         COUNT(CASE WHEN nome_canal IS NULL THEN 1 END)   AS sem_canal,
         COUNT(CASE WHEN nome_regiao IS NULL THEN 1 END)  AS sem_regiao,
         COUNT(CASE WHEN ano IS NULL THEN 1 END)          AS sem_data
-    FROM gold.vw_pedidos_analytics
+    FROM {GOLD_SCHEMA}.vw_pedidos_analytics
 """).first()
 
 print(f"""

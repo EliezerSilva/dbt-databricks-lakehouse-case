@@ -16,7 +16,7 @@ def write_gold(df, table_name):
         .format("delta")
         .mode("overwrite")
         .option("overwriteSchema", "true")
-        .saveAsTable(f"gold.{table_name}")
+        .saveAsTable(f"{GOLD_SCHEMA}.{table_name}")
     )
     elapsed = round((datetime.datetime.utcnow() - t).total_seconds(), 1)
     n = df.count()
@@ -24,7 +24,7 @@ def write_gold(df, table_name):
 
 # COMMAND ----------
 
-df_clientes = spark.read.table("silver.silver_clientes")
+df_clientes = spark.read.table(f"{SILVER_SCHEMA}.silver_clientes")
 
 dim_cliente = (
     df_clientes
@@ -47,7 +47,7 @@ write_gold(dim_cliente, "dim_cliente")
 
 # COMMAND ----------
 
-df_produtos = spark.read.table("silver.silver_produtos")
+df_produtos = spark.read.table(f"{SILVER_SCHEMA}.silver_produtos")
 
 dim_produto = (
     df_produtos
@@ -70,7 +70,7 @@ write_gold(dim_produto, "dim_produto")
 
 # COMMAND ----------
 
-df_canais = spark.read.table("silver.silver_canais")
+df_canais = spark.read.table(f"{SILVER_SCHEMA}.silver_canais")
 
 dim_canal = (
     df_canais
@@ -88,7 +88,7 @@ write_gold(dim_canal, "dim_canal")
 
 # COMMAND ----------
 
-df_regioes = spark.read.table("silver.silver_regioes")
+df_regioes = spark.read.table(f"{SILVER_SCHEMA}.silver_regioes")
 
 dim_regiao = (
     df_regioes
@@ -106,7 +106,7 @@ write_gold(dim_regiao, "dim_regiao")
 
 # COMMAND ----------
 
-df_vend = spark.read.table("silver.silver_vendedores")
+df_vend = spark.read.table(f"{SILVER_SCHEMA}.silver_vendedores")
 
 dim_vendedor = (
     df_vend
@@ -126,8 +126,8 @@ write_gold(dim_vendedor, "dim_vendedor")
 
 # COMMAND ----------
 
-df_pedidos_ref = spark.read.table("silver.silver_pedidos_cabecalho")
-df_entregas_ref = spark.read.table("silver.silver_logistica")
+df_pedidos_ref = spark.read.table(f"{SILVER_SCHEMA}.silver_pedidos_cabecalho")
+df_entregas_ref = spark.read.table(f"{SILVER_SCHEMA}.silver_logistica")
 
 dates_union = (
     df_pedidos_ref.select(F.col("order_date").alias("dt"))

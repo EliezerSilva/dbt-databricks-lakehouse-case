@@ -15,7 +15,7 @@ def write_silver(df, table_name):
     (
         df.write.format("delta").mode("overwrite")
         .option("overwriteSchema", "true")
-        .saveAsTable(f"silver.{table_name}")
+        .saveAsTable(f"{SILVER_SCHEMA}.{table_name}")
     )
     n = df.count()
     print(f"silver.{table_name}: {n} rows")
@@ -23,7 +23,7 @@ def write_silver(df, table_name):
 
 # COMMAND ----------
 
-df_prod_raw = spark.read.table("bronze.bronze_cadastro_produtos")
+df_prod_raw = spark.read.table(f"{BRONZE_SCHEMA}.bronze_cadastro_produtos")
 n_status_nulo = df_prod_raw.filter(F.col("status").isNull()).count()
 
 df_produtos = (
@@ -48,7 +48,7 @@ write_silver(df_produtos, "silver_produtos")
 
 # COMMAND ----------
 
-df_ent_raw = spark.read.table("bronze.bronze_logistica_entregas")
+df_ent_raw = spark.read.table(f"{BRONZE_SCHEMA}.bronze_logistica_entregas")
 
 delivery_status_map = {
     "delivered": "entregue",
@@ -86,7 +86,7 @@ df_entregas = (
     .drop("shipped_at_raw", "delivered_at_raw", "source_file", "processing_timestamp", "ingestion_date")
 )
 
-df_pedidos_cab = spark.read.table("silver.silver_pedidos_cabecalho").select("order_id", "promised_date").distinct()
+df_pedidos_cab = spark.read.table(f"{SILVER_SCHEMA}.silver_pedidos_cabecalho").select("order_id", "promised_date").distinct()
 
 df_logistica = (
     df_entregas
@@ -120,7 +120,7 @@ write_silver(df_logistica, "silver_logistica")
 
 # COMMAND ----------
 
-df_ocorr_raw = spark.read.table("bronze.bronze_atendimento_ocorrencias")
+df_ocorr_raw = spark.read.table(f"{BRONZE_SCHEMA}.bronze_atendimento_ocorrencias")
 
 n_event_nulo = df_ocorr_raw.filter(F.col("event_type").isNull()).count()
 n_severity_nulo = df_ocorr_raw.filter(F.col("severity").isNull()).count()

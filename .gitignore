@@ -34,3 +34,7 @@ logs/
 .env.*
 !.env.example
 profiles.yml
+
+# Backups e evidencias locais de desenvolvimento
+artifacts/
+.databricks/

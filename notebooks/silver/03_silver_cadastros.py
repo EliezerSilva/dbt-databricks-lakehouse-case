@@ -15,7 +15,7 @@ def write_silver(df, table_name, partition_col=None):
     writer = df.write.format("delta").mode("overwrite").option("overwriteSchema", "true")
     if partition_col:
         writer = writer.partitionBy(partition_col)
-    writer.saveAsTable(f"silver.{table_name}")
+    writer.saveAsTable(f"{SILVER_SCHEMA}.{table_name}")
     n = df.count()
     print(f"silver.{table_name}: {n} rows")
     return n
@@ -52,7 +52,7 @@ def normalize_state(col_name):
 
 # COMMAND ----------
 
-df_regioes_raw = spark.read.table("bronze.bronze_legado_regioes")
+df_regioes_raw = spark.read.table(f"{BRONZE_SCHEMA}.bronze_legado_regioes")
 
 
 df_invalidos_reg = df_regioes_raw.filter(
@@ -94,7 +94,7 @@ write_silver(df_regioes, "silver_regioes")
 # COMMAND ----------
 
 df_canais = (
-    spark.read.table("bronze.bronze_comercial_canais")
+    spark.read.table(f"{BRONZE_SCHEMA}.bronze_comercial_canais")
     .withColumn("ativo",
         F.when(F.lower(F.trim(F.col("ativo"))) == "sim", F.lit(True))
          .when(F.lower(F.trim(F.col("ativo"))) == "nao", F.lit(False))
@@ -110,7 +110,7 @@ write_silver(df_canais, "silver_canais")
 
 # COMMAND ----------
 
-df_vend_raw = spark.read.table("bronze.bronze_comercial_vendedores")
+df_vend_raw = spark.read.table(f"{BRONZE_SCHEMA}.bronze_comercial_vendedores")
 
 n_regional_nok = df_vend_raw.filter(
     F.lower(F.trim(F.col("regional_code"))).isin("sul") | F.col("regional_code").isNull()
@@ -145,7 +145,7 @@ write_silver(df_vendedores, "silver_vendedores")
 # COMMAND ----------
 
 df_clientes = (
-    spark.read.table("bronze.bronze_crm_clientes")
+    spark.read.table(f"{BRONZE_SCHEMA}.bronze_crm_clientes")
     .withColumn("estado", normalize_state("estado"))
     .withColumn("porte", F.initcap(F.lower(F.trim(F.col("porte")))))
     .withColumn("segmento", F.initcap(F.lower(F.trim(F.col("segmento")))))

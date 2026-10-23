@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ../00_setup
+
+# COMMAND ----------
+
 # DBTITLE 1,Validation — catalogs, schemas and storage objects
 print("Available catalogs:")
 spark.sql("SHOW CATALOGS").show()
@@ -10,424 +14,472 @@ print("\nAvailable volumes in lakehouse_case schema:")
 spark.sql("SHOW VOLUMES IN workspace.lakehouse_case").show()
 
 print("\nBronze tables:")
-spark.sql("SHOW TABLES IN bronze").show(truncate=False)
+spark.sql(f"SHOW TABLES IN {BRONZE_SCHEMA}").show(truncate=False)
 
 print("\nSilver tables:")
-spark.sql("SHOW TABLES IN silver").show(truncate=False)
+spark.sql(f"SHOW TABLES IN {SILVER_SCHEMA}").show(truncate=False)
 
 print("\nGold tables:")
-spark.sql("SHOW TABLES IN gold").show(truncate=False)
+spark.sql(f"SHOW TABLES IN {GOLD_SCHEMA}").show(truncate=False)
 
 print("\nControl tables:")
-spark.sql("SHOW TABLES IN control").show(truncate=False)
+spark.sql(f"SHOW TABLES IN {CONTROL_SCHEMA}").show(truncate=False)
 
 # COMMAND ----------
 
 # DBTITLE 1,table ingestion_log
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) 
-# MAGIC FROM bronze.bronze_erp_pedidos_cabecalho;
+display(spark.sql(f"""
+SELECT COUNT(*)
+FROM {BRONZE_SCHEMA}.bronze_erp_pedidos_cabecalho;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     source_file,
-# MAGIC     target_table,
-# MAGIC     records_loaded,
-# MAGIC     status,
-# MAGIC     bronze_load_timestamp
-# MAGIC FROM control.ingestion_log
-# MAGIC ORDER BY bronze_load_timestamp DESC;
+display(spark.sql(f"""
+SELECT
+    source_file,
+    target_table,
+    records_loaded,
+    status,
+    bronze_load_timestamp
+FROM {CONTROL_SCHEMA}.ingestion_log
+ORDER BY bronze_load_timestamp DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SHOW TABLES IN silver;
+display(spark.sql(f"""
+SHOW TABLES IN {SILVER_SCHEMA};
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) 
-# MAGIC FROM silver.silver_pedidos_cabecalho;
+display(spark.sql(f"""
+SELECT COUNT(*)
+FROM {SILVER_SCHEMA}.silver_pedidos_cabecalho;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     order_id,
-# MAGIC     order_date,
-# MAGIC     promised_date
-# MAGIC FROM silver.silver_pedidos_cabecalho
-# MAGIC LIMIT 20;
+display(spark.sql(f"""
+SELECT
+    order_id,
+    order_date,
+    promised_date
+FROM {SILVER_SCHEMA}.silver_pedidos_cabecalho
+LIMIT 20;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     status_order,
-# MAGIC     COUNT(*) AS total
-# MAGIC FROM silver.silver_pedidos_cabecalho
-# MAGIC GROUP BY status_order
-# MAGIC ORDER BY total DESC;
+display(spark.sql(f"""
+SELECT
+    status_order,
+    COUNT(*) AS total
+FROM {SILVER_SCHEMA}.silver_pedidos_cabecalho
+GROUP BY status_order
+ORDER BY total DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     source_table AS table_name,
-# MAGIC     check_name AS quality_rule,
-# MAGIC     records_affected,
-# MAGIC     message AS details
-# MAGIC FROM workspace.silver.quality_log
-# MAGIC ORDER BY processing_timestamp DESC;
+display(spark.sql(f"""
+SELECT
+    source_table AS table_name,
+    check_name AS quality_rule,
+    records_affected,
+    message AS details
+FROM {SILVER_SCHEMA}.quality_log
+ORDER BY processing_timestamp DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     order_source,
-# MAGIC     order_priority
-# MAGIC FROM silver.silver_pedidos_cabecalho
-# MAGIC LIMIT 20;
+display(spark.sql(f"""
+SELECT
+    order_source,
+    order_priority
+FROM {SILVER_SCHEMA}.silver_pedidos_cabecalho
+LIMIT 20;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*)
-# MAGIC FROM silver.silver_pedidos_itens;
+display(spark.sql(f"""
+SELECT COUNT(*)
+FROM {SILVER_SCHEMA}.silver_pedidos_itens;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     order_id,
-# MAGIC     item_seq,
-# MAGIC     COUNT(*) AS total
-# MAGIC FROM silver.silver_pedidos_itens
-# MAGIC GROUP BY order_id, item_seq
-# MAGIC HAVING COUNT(*) > 1;
+display(spark.sql(f"""
+SELECT
+    order_id,
+    item_seq,
+    COUNT(*) AS total
+FROM {SILVER_SCHEMA}.silver_pedidos_itens
+GROUP BY order_id, item_seq
+HAVING COUNT(*) > 1;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     item_status,
-# MAGIC     COUNT(*)
-# MAGIC FROM silver.silver_pedidos_itens
-# MAGIC GROUP BY item_status
-# MAGIC ORDER BY 2 DESC;
+display(spark.sql(f"""
+SELECT
+    item_status,
+    COUNT(*)
+FROM {SILVER_SCHEMA}.silver_pedidos_itens
+GROUP BY item_status
+ORDER BY 2 DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     source_table,
-# MAGIC     check_name,
-# MAGIC     records_affected,
-# MAGIC     message
-# MAGIC FROM silver.quality_log
-# MAGIC WHERE source_table = 'silver_pedidos_itens'
-# MAGIC ORDER BY processing_timestamp DESC;
+display(spark.sql(f"""
+SELECT
+    source_table,
+    check_name,
+    records_affected,
+    message
+FROM {SILVER_SCHEMA}.quality_log
+WHERE source_table = 'silver_pedidos_itens'
+ORDER BY processing_timestamp DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SHOW TABLES IN silver;
+display(spark.sql(f"""
+SHOW TABLES IN {SILVER_SCHEMA};
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM silver.silver_regioes;
+display(spark.sql(f"""
+SELECT COUNT(*) FROM {SILVER_SCHEMA}.silver_regioes;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM silver.silver_canais;
+display(spark.sql(f"""
+SELECT COUNT(*) FROM {SILVER_SCHEMA}.silver_canais;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM silver.silver_vendedores;
+display(spark.sql(f"""
+SELECT COUNT(*) FROM {SILVER_SCHEMA}.silver_vendedores;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM silver.silver_clientes;
+display(spark.sql(f"""
+SELECT COUNT(*) FROM {SILVER_SCHEMA}.silver_clientes;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     estado,
-# MAGIC     COUNT(*)
-# MAGIC FROM silver.silver_clientes
-# MAGIC GROUP BY estado
-# MAGIC ORDER BY 2 DESC;
+display(spark.sql(f"""
+SELECT
+    estado,
+    COUNT(*)
+FROM {SILVER_SCHEMA}.silver_clientes
+GROUP BY estado
+ORDER BY 2 DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     delivery_status,
-# MAGIC     COUNT(*)
-# MAGIC FROM silver.silver_logistica
-# MAGIC GROUP BY delivery_status
-# MAGIC ORDER BY 2 DESC;
+display(spark.sql(f"""
+SELECT
+    delivery_status,
+    COUNT(*)
+FROM {SILVER_SCHEMA}.silver_logistica
+GROUP BY delivery_status
+ORDER BY 2 DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     flag_atrasado,
-# MAGIC     COUNT(*)
-# MAGIC FROM silver.silver_logistica
-# MAGIC GROUP BY flag_atrasado;
+display(spark.sql(f"""
+SELECT
+    flag_atrasado,
+    COUNT(*)
+FROM {SILVER_SCHEMA}.silver_logistica
+GROUP BY flag_atrasado;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     severity,
-# MAGIC     COUNT(*)
-# MAGIC FROM silver.silver_atendimento_ocorrencias
-# MAGIC GROUP BY severity
-# MAGIC ORDER BY 2 DESC;
+display(spark.sql(f"""
+SELECT
+    severity,
+    COUNT(*)
+FROM {SILVER_SCHEMA}.silver_atendimento_ocorrencias
+GROUP BY severity
+ORDER BY 2 DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     source_table,
-# MAGIC     check_name,
-# MAGIC     records_affected,
-# MAGIC     message
-# MAGIC FROM silver.quality_log
-# MAGIC ORDER BY processing_timestamp DESC;
+display(spark.sql(f"""
+SELECT
+    source_table,
+    check_name,
+    records_affected,
+    message
+FROM {SILVER_SCHEMA}.quality_log
+ORDER BY processing_timestamp DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SHOW TABLES IN gold;
+display(spark.sql(f"""
+SHOW TABLES IN {GOLD_SCHEMA};
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT sk_cliente) sk_distintas
-# MAGIC FROM gold.dim_cliente;
+display(spark.sql(f"""
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT sk_cliente) sk_distintas
+FROM {GOLD_SCHEMA}.dim_cliente;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT sk_produto) sk_distintas
-# MAGIC FROM gold.dim_produto;
+display(spark.sql(f"""
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT sk_produto) sk_distintas
+FROM {GOLD_SCHEMA}.dim_produto;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT sk_data) sk_distintas
-# MAGIC FROM gold.dim_data;
+display(spark.sql(f"""
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT sk_data) sk_distintas
+FROM {GOLD_SCHEMA}.dim_data;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     data,
-# MAGIC     nome_mes,
-# MAGIC     nome_dia_semana,
-# MAGIC     flag_fim_semana
-# MAGIC FROM gold.dim_data
-# MAGIC ORDER BY data
-# MAGIC LIMIT 20;
+display(spark.sql(f"""
+SELECT
+    data,
+    nome_mes,
+    nome_dia_semana,
+    flag_fim_semana
+FROM {GOLD_SCHEMA}.dim_data
+ORDER BY data
+LIMIT 20;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     MIN(data),
-# MAGIC     MAX(data)
-# MAGIC FROM gold.dim_data;
+display(spark.sql(f"""
+SELECT
+    MIN(data),
+    MAX(data)
+FROM {GOLD_SCHEMA}.dim_data;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*)
-# MAGIC FROM gold.fato_pedidos;
+display(spark.sql(f"""
+SELECT COUNT(*)
+FROM {GOLD_SCHEMA}.fato_pedidos;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT concat(order_id, '-', item_seq)) granularidade
-# MAGIC FROM gold.fato_pedidos;
+display(spark.sql(f"""
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT concat(order_id, '-', item_seq)) granularidade
+FROM {GOLD_SCHEMA}.fato_pedidos;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     flag_atrasado,
-# MAGIC     COUNT(*)
-# MAGIC FROM gold.fato_pedidos
-# MAGIC GROUP BY flag_atrasado;
+display(spark.sql(f"""
+SELECT
+    flag_atrasado,
+    COUNT(*)
+FROM {GOLD_SCHEMA}.fato_pedidos
+GROUP BY flag_atrasado;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     flag_cancelado,
-# MAGIC     COUNT(*)
-# MAGIC FROM gold.fato_pedidos
-# MAGIC GROUP BY flag_cancelado;
+display(spark.sql(f"""
+SELECT
+    flag_cancelado,
+    COUNT(*)
+FROM {GOLD_SCHEMA}.fato_pedidos
+GROUP BY flag_cancelado;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     valor_item,
-# MAGIC     valor_desconto_pedido,
-# MAGIC     receita_liquida_item
-# MAGIC FROM gold.fato_pedidos
-# MAGIC LIMIT 20;
+display(spark.sql(f"""
+SELECT
+    valor_item,
+    valor_desconto_pedido,
+    receita_liquida_item
+FROM {GOLD_SCHEMA}.fato_pedidos
+LIMIT 20;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     order_id,
-# MAGIC     item_seq,
-# MAGIC     COUNT(*) qtd
-# MAGIC FROM gold.fato_pedidos
-# MAGIC GROUP BY order_id, item_seq
-# MAGIC HAVING COUNT(*) > 1
-# MAGIC ORDER BY qtd DESC;
+display(spark.sql(f"""
+SELECT
+    order_id,
+    item_seq,
+    COUNT(*) qtd
+FROM {GOLD_SCHEMA}.fato_pedidos
+GROUP BY order_id, item_seq
+HAVING COUNT(*) > 1
+ORDER BY qtd DESC;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     seller_id,
-# MAGIC     COUNT(*)
-# MAGIC FROM gold.dim_vendedor
-# MAGIC GROUP BY seller_id
-# MAGIC HAVING COUNT(*) > 1;
+display(spark.sql(f"""
+SELECT
+    seller_id,
+    COUNT(*)
+FROM {GOLD_SCHEMA}.dim_vendedor
+GROUP BY seller_id
+HAVING COUNT(*) > 1;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     order_ref,
-# MAGIC     COUNT(*)
-# MAGIC FROM silver.silver_logistica
-# MAGIC WHERE order_ref IN ('O00081', 'O00011', 'O00121')
-# MAGIC GROUP BY order_ref;
+display(spark.sql(f"""
+SELECT
+    order_ref,
+    COUNT(*)
+FROM {SILVER_SCHEMA}.silver_logistica
+WHERE order_ref IN ('O00081', 'O00011', 'O00121')
+GROUP BY order_ref;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT *
-# MAGIC FROM silver.silver_logistica
-# MAGIC WHERE order_ref IN ('O00081', 'O00011', 'O00121')
-# MAGIC ORDER BY order_ref, delivered_at;
+display(spark.sql(f"""
+SELECT *
+FROM {SILVER_SCHEMA}.silver_logistica
+WHERE order_ref IN ('O00081', 'O00011', 'O00121')
+ORDER BY order_ref, delivered_at;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     order_id,
-# MAGIC     item_seq,
-# MAGIC     COUNT(*)
-# MAGIC FROM silver.silver_pedidos_itens
-# MAGIC WHERE order_id IN ('O00081', 'O00011', 'O00121')
-# MAGIC GROUP BY order_id, item_seq
-# MAGIC HAVING COUNT(*) > 1;
+display(spark.sql(f"""
+SELECT
+    order_id,
+    item_seq,
+    COUNT(*)
+FROM {SILVER_SCHEMA}.silver_pedidos_itens
+WHERE order_id IN ('O00081', 'O00011', 'O00121')
+GROUP BY order_id, item_seq
+HAVING COUNT(*) > 1;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT concat(order_id, '-', item_seq)) granularidade
-# MAGIC FROM gold.fato_pedidos;
+display(spark.sql(f"""
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT concat(order_id, '-', item_seq)) granularidade
+FROM {GOLD_SCHEMA}.fato_pedidos;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     order_id,
-# MAGIC     COUNT(*)
-# MAGIC FROM silver.silver_pedidos_cabecalho
-# MAGIC GROUP BY order_id
-# MAGIC HAVING COUNT(*) > 1;
+display(spark.sql(f"""
+SELECT
+    order_id,
+    COUNT(*)
+FROM {SILVER_SCHEMA}.silver_pedidos_cabecalho
+GROUP BY order_id
+HAVING COUNT(*) > 1;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     COUNT(*) total,
-# MAGIC     COUNT(DISTINCT concat(order_id, '-', item_seq)) granularidade
-# MAGIC FROM gold.fato_pedidos;
+display(spark.sql(f"""
+SELECT
+    COUNT(*) total,
+    COUNT(DISTINCT concat(order_id, '-', item_seq)) granularidade
+FROM {GOLD_SCHEMA}.fato_pedidos;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SHOW TABLES IN gold;
+display(spark.sql(f"""
+SHOW TABLES IN {GOLD_SCHEMA};
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM gold.metricas_por_periodo;
+display(spark.sql(f"""
+SELECT COUNT(*) FROM {GOLD_SCHEMA}.metricas_por_periodo;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM gold.metricas_por_regiao;
+display(spark.sql(f"""
+SELECT COUNT(*) FROM {GOLD_SCHEMA}.metricas_por_regiao;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM gold.metricas_por_canal;
+display(spark.sql(f"""
+SELECT COUNT(*) FROM {GOLD_SCHEMA}.metricas_por_canal;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM gold.metricas_por_categoria;
+display(spark.sql(f"""
+SELECT COUNT(*) FROM {GOLD_SCHEMA}.metricas_por_categoria;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM gold.metricas_operacionais;
+display(spark.sql(f"""
+SELECT COUNT(*) FROM {GOLD_SCHEMA}.metricas_operacionais;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     ano_mes,
-# MAGIC     receita_bruta,
-# MAGIC     receita_liquida,
-# MAGIC     total_descontos,
-# MAGIC     ticket_medio
-# MAGIC FROM gold.metricas_por_periodo
-# MAGIC ORDER BY ano_mes;
+display(spark.sql(f"""
+SELECT
+    ano_mes,
+    receita_bruta,
+    receita_liquida,
+    total_descontos,
+    ticket_medio
+FROM {GOLD_SCHEMA}.metricas_por_periodo
+ORDER BY ano_mes;
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC     ano_mes,
-# MAGIC     nome_regiao,
-# MAGIC     nome_canal,
-# MAGIC     taxa_cancelamento_pct,
-# MAGIC     taxa_atraso_pct
-# MAGIC FROM gold.metricas_operacionais
-# MAGIC ORDER BY ano_mes
-# MAGIC LIMIT 30;
+display(spark.sql(f"""
+SELECT
+    ano_mes,
+    nome_regiao,
+    nome_canal,
+    taxa_cancelamento_pct,
+    taxa_atraso_pct
+FROM {GOLD_SCHEMA}.metricas_operacionais
+ORDER BY ano_mes
+LIMIT 30;
+"""))
 
 # COMMAND ----------
-

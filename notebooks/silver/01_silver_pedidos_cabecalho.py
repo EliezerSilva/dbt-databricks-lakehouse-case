@@ -13,7 +13,73 @@ from pyspark.sql.window import Window
 SILVER_TABLE = "silver_pedidos_cabecalho"
 t0 = datetime.datetime.utcnow()
 
-df_raw = spark.read.table("bronze.bronze_erp_pedidos_cabecalho")
+
+# Protecao fail-closed antes de qualquer escrita Silver.
+_recover_existing_quality = False
+_silver_target = f"{SILVER_SCHEMA}.{SILVER_TABLE}"
+
+if spark.catalog.tableExists(_silver_target):
+    raise RuntimeError(
+        f"ABORTADO: tabela Silver ja existe: {_silver_target}. "
+        "Investigar antes de reprocessar."
+    )
+
+for _audit_table in ("quality_log", "tabelas_invalidas"):
+    _audit_target = f"{SILVER_SCHEMA}.{_audit_table}"
+
+    if not spark.catalog.tableExists(_audit_target):
+        raise RuntimeError(
+            f"ABORTADO: tabela de auditoria ausente: {_audit_target}"
+        )
+
+    _existing = (
+        spark.table(_audit_target)
+        .filter(F.col("source_table") == SILVER_TABLE)
+        .limit(1)
+        .count()
+    )
+
+    if _existing:
+        if _audit_table == "quality_log":
+            _previous_rows = (
+                spark.table(_audit_target)
+                .filter(F.col("source_table") == SILVER_TABLE)
+                .select("check_name", "records_affected")
+                .collect()
+            )
+
+            if len(_previous_rows) != 2:
+                raise RuntimeError(
+                    "ABORTADO: recuperacao exige exatamente "
+                    "2 registros de qualidade; encontrados "
+                    f"{len(_previous_rows)}."
+                )
+
+            _previous_checks = {
+                row["check_name"]: int(row["records_affected"])
+                for row in _previous_rows
+            }
+
+            _expected_checks = {
+                "status_order_desconhecido": 64,
+                "gross_amount_derivado": 15,
+            }
+
+            if _previous_checks != _expected_checks:
+                raise RuntimeError(
+                    "ABORTADO: auditoria anterior diferente da "
+                    "recuperacao conhecida."
+                )
+
+            _recover_existing_quality = True
+        else:
+            raise RuntimeError(
+                f"ABORTADO: auditoria anterior encontrada em {_audit_target}."
+            )
+
+print("SILVER01_FIRST_LOAD_GUARD_OK")
+
+df_raw = spark.read.table(f"{BRONZE_SCHEMA}.bronze_erp_pedidos_cabecalho")
 
 # COMMAND ----------
 
@@ -37,7 +103,28 @@ def parse_date_col(col_name):
 
 
 w_order = Window.partitionBy("order_id").orderBy(
-    F.col("last_update").desc_nulls_last()
+    F.to_timestamp(
+        F.col("last_update"), "yyyy-MM-dd HH:mm:ss"
+    ).desc_nulls_last(),
+    F.when(
+        parse_date_col("order_date").isNotNull(), 1
+    ).otherwise(0).desc(),
+    F.sha2(
+        F.to_json(F.struct(
+            F.col("order_id"),
+            F.col("customer_code"),
+            F.col("seller_id"),
+            F.col("order_date"),
+            F.col("promised_date"),
+            F.col("status_order"),
+            F.col("gross_amount"),
+            F.col("discount_amount"),
+            F.col("net_amount"),
+            F.col("last_update"),
+            F.col("order_source"),
+            F.col("order_priority"),
+        )), 256
+    ).asc()
 )
 
 df_silver = (
@@ -76,20 +163,24 @@ n_sem_status = df_silver.filter(F.col("status_order") == "DESCONHECIDO").count()
 n_sem_data = df_silver.filter(F.col("order_date").isNull()).count()
 n_gross_nulo = df_raw.filter(F.col("gross_amount").isNull()).count()
 
-log_quality(SILVER_TABLE, "status_order_desconhecido", n_sem_status, f"{n_sem_status} pedidos com status_order nulo")
-log_quality(SILVER_TABLE, "order_date_invalida", n_sem_data,   f"{n_sem_data} pedidos sem order_date após parse em 3 formatos")
-log_quality(SILVER_TABLE, "gross_amount_derivado", n_gross_nulo, f"{n_gross_nulo} registros com gross_amount recalculado")
-
 # COMMAND ----------
 
 (
     df_silver.write
     .format("delta")
-    .mode("overwrite")
-    .option("overwriteSchema", "true")
-    .partitionBy("status_order")
-    .saveAsTable(f"silver.{SILVER_TABLE}")
+    .mode("append")
+        .partitionBy("status_order")
+    .saveAsTable(f"{SILVER_SCHEMA}.{SILVER_TABLE}")
 )
+
+
+# Auditoria posterior a persistencia da tabela Silver.
+if _recover_existing_quality:
+    print("SILVER01_RECOVERY_QUALITY_LOGS_PRESERVED")
+else:
+    log_quality(SILVER_TABLE, "status_order_desconhecido", n_sem_status, f"{n_sem_status} pedidos com status_order nulo")
+    log_quality(SILVER_TABLE, "order_date_invalida", n_sem_data,   f"{n_sem_data} pedidos sem order_date após parse em 3 formatos")
+    log_quality(SILVER_TABLE, "gross_amount_derivado", n_gross_nulo, f"{n_gross_nulo} registros com gross_amount recalculado")
 
 elapsed = round((datetime.datetime.utcnow() - t0).total_seconds(), 1)
 print(f"silver.{SILVER_TABLE}: {df_silver.count()} rows | {elapsed}s")

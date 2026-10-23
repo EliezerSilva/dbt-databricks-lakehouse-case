@@ -1,0 +1,61 @@
+resources:
+  jobs:
+    dab_bronze_itens_preflight:
+      name: dab-bronze-itens-preflight-${bundle.target}
+      max_concurrent_runs: 1
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: source_root
+          default: ${var.source_root}
+        - name: bronze_schema
+          default: ${var.bronze_schema}
+        - name: silver_schema
+          default: ${var.silver_schema}
+        - name: gold_schema
+          default: ${var.gold_schema}
+        - name: control_schema
+          default: ${var.control_schema}
+
+      tasks:
+        - task_key: bronze_itens_preflight
+          environment_key: probe_runtime
+          notebook_task:
+            notebook_path: ../notebooks/troubleshooting/98_dab_bronze_itens_preflight.py
+            source: WORKSPACE
+
+      environments:
+        - environment_key: probe_runtime
+          spec:
+            environment_version: "2"
+
+    dab_bronze_itens_first_load:
+      name: dab-bronze-itens-first-load-${bundle.target}
+      max_concurrent_runs: 1
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: source_root
+          default: ${var.source_root}
+        - name: bronze_schema
+          default: ${var.bronze_schema}
+        - name: silver_schema
+          default: ${var.silver_schema}
+        - name: gold_schema
+          default: ${var.gold_schema}
+        - name: control_schema
+          default: ${var.control_schema}
+
+      tasks:
+        - task_key: bronze_pedidos_itens
+          environment_key: bronze_runtime
+          notebook_task:
+            notebook_path: ../notebooks/bronze/02_bronze_pedidos_itens.py
+            source: WORKSPACE
+
+      environments:
+        - environment_key: bronze_runtime
+          spec:
+            environment_version: "2"
