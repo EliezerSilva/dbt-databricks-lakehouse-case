@@ -26,7 +26,7 @@ def falhas(run_results, manifest):
     nodes = manifest.get("nodes", {})
     out = []
     for r in run_results.get("results", []):
-        if r.get("status") not in ("fail", "error"):
+        if r.get("status") != "fail":
             continue
         node = nodes.get(r["unique_id"], {})
         meta = node.get("test_metadata") or {}
@@ -41,3 +41,7 @@ def falhas(run_results, manifest):
             "modelo": modelo.get("name"), "relacao": modelo.get("relation_name"),
         })
     return out
+
+
+def erros_execucao(run_results):
+    return [r["unique_id"] for r in run_results.get("results", []) if r.get("status") == "error"]

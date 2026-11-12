@@ -33,7 +33,8 @@ class TestClassificacaoNovas(unittest.TestCase):
 class TestDbtArtifacts(unittest.TestCase):
     RR = {"args": {"target": "cenarios"}, "metadata": {"generated_at": "t"}, "results": [
         {"unique_id": "test.p.av", "status": "fail", "failures": 1, "message": "Got 1 result"},
-        {"unique_id": "test.p.w", "status": "warn", "failures": 1, "message": "Got 1 result"}]}
+        {"unique_id": "test.p.w", "status": "warn", "failures": 1, "message": "Got 1 result"},
+        {"unique_id": "test.p.e", "status": "error", "failures": None, "message": "TABLE_OR_VIEW_NOT_FOUND"}]}
     MF = {"nodes": {
         "test.p.av": {"test_metadata": {"name": "accepted_values",
                                          "kwargs": {"column_name": "regional_code", "values": ["S", "N"]}},
@@ -45,6 +46,10 @@ class TestDbtArtifacts(unittest.TestCase):
         self.assertEqual(len(f), 1)
         self.assertEqual((f[0]["teste"], f[0]["coluna"], f[0]["modelo"]), ("accepted_values", "regional_code", "dim_regiao"))
         self.assertEqual(f[0]["valores"], ["S", "N"])
+
+    def test_erro_de_execucao_nao_e_falha_de_dado(self):
+        self.assertEqual(dbt_artifacts.erros_execucao(self.RR), ["test.p.e"])
+        self.assertNotIn("test.p.e", [f["unique_id"] for f in dbt_artifacts.falhas(self.RR, self.MF)])
 
     def test_target(self):
         self.assertEqual(dbt_artifacts.target_de(self.RR), "cenarios")

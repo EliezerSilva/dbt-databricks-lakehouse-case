@@ -2,6 +2,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import sys
 import uuid
 
 from agent import classify, dbt_artifacts, llm as llm_mod, narrate, tools
@@ -109,6 +110,9 @@ def diagnosticos_dbt(db, amb, target_dir, avisos):
     if alvo != esperado:
         avisos.append(f"dbt: artefatos do target '{alvo}' ignorados; ambiente '{amb}' exige '{esperado}'")
         return []
+    erros = dbt_artifacts.erros_execucao(rr)
+    if erros:
+        avisos.append(f"dbt: {len(erros)} no(s) com erro de execucao ignorado(s), nao sao falha de dado: {erros[:3]}")
     out = []
     for f in dbt_artifacts.falhas(rr, mf):
         valores = None
@@ -210,7 +214,7 @@ def main(argv=None):
     if a.gravar:
         gravar(db, run_id, inicio, a.ambiente, modo, status, erro, diags, narrs,
                a.endpoint if llm else None, calls)
-        print(f"gravado: agent_run_id={run_id}")
+        print(f"gravado: agent_run_id={run_id}", file=sys.stderr)
     return 0 if status != "ERRO" else 1
 
 
