@@ -79,9 +79,10 @@ O dbt lê as tabelas originais (`workspace.silver`, `workspace.gold`) e escreve 
 | `dim_regiao` — table em `workspace.dbt_gold` | Implementado, testado e reconciliado com `workspace.gold.dim_regiao` |
 | `dim_vendedor` — table em `workspace.dbt_gold` | Implementado, testado e reconciliado com `workspace.gold.dim_vendedor` |
 | `dim_cliente`, `dim_produto` — tables em `workspace.dbt_gold` | Implementado e testado; SCD1 pela versão mais recente, reconciliado com 3 divergências declaradas |
-| `dim_data`, fato e métricas | Não iniciado |
+| `dim_data` — table em `workspace.dbt_gold` | Implementado, testado (incluindo contiguidade) e reconciliado com `workspace.gold.dim_data` |
+| Fato e métricas | Não iniciado |
 
-Detalhes por dimensão: [dim_canal](docs/dbt/dim_canal.md), [dim_regiao](docs/dbt/dim_regiao.md), [dim_vendedor](docs/dbt/dim_vendedor.md), [dim_cliente e dim_produto](docs/dbt/dim_cliente_produto.md).
+Detalhes por dimensão: [dim_canal](docs/dbt/dim_canal.md), [dim_regiao](docs/dbt/dim_regiao.md), [dim_vendedor](docs/dbt/dim_vendedor.md), [dim_cliente e dim_produto](docs/dbt/dim_cliente_produto.md), [dim_data](docs/dbt/dim_data.md).
 
 ### Execução do dbt
 
@@ -119,7 +120,7 @@ Detalhes: [docs/agent/agente_quarentena.md](docs/agent/agente_quarentena.md).
 
 | Fase | Entrega | Status |
 |---|---|---|
-| 1 | Dimensões no dbt | Canal, região, vendedor, cliente e produto concluídas; `dim_data` pendente |
+| 1 | Dimensões no dbt | Concluída: canal, região, vendedor, cliente, produto e data |
 | 2 | `fato_pedidos` no dbt com testes de relacionamento | Pendente |
 | 3 | Camada semântica (métricas governadas) | Pendente |
 | 4 | Ontologia (entidades, relações, sinônimos) | Iniciada: registro de domínios do agente |
