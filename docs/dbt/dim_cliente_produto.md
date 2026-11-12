@@ -33,8 +33,8 @@ O teste genérico `reconciles_with` com `exceptions` e `key_column`:
 - falha para qualquer diferença cuja chave não esteja declarada;
 - falha para exceção declarada que não diverge mais (`declarada_sem_diferenca`).
 
-Prova executada em 2026-11-12: exceção fictícia `C0001` → FAIL 1; remoção da exceção `C0025` → FAIL 2;
-seed restaurado → PASS. Sem `exceptions`, o teste mantém o comportamento original (`dim_canal`, `dim_regiao`, `dim_vendedor`).
+Prova executada em 2026-11-12: com a exceção fictícia `C0001`, o teste falhou;
+sem a exceção `C0025`, o teste falhou; com o seed restaurado, passou. Sem `exceptions`, o teste mantém o comportamento original (`dim_canal`, `dim_regiao`, `dim_vendedor`).
 
 Impacto a jusante (fase 3): métricas por segmento, estado e produto herdam as mesmas três exceções na reconciliação com o PySpark.
 
