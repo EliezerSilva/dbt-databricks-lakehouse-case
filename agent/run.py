@@ -4,7 +4,7 @@ import hashlib
 import json
 import uuid
 
-from agent import classify, tools
+from agent import classify, llm as llm_mod, narrate, tools
 from agent.db import Db
 
 DDL = [
@@ -17,11 +17,19 @@ DDL = [
         ocorrencias BIGINT, registros BIGINT, pedidos BIGINT, impacto_valor DOUBLE, decisao_humana BOOLEAN,
         resumo STRING, proposta STRING, evidencia STRING, criado_em TIMESTAMP
     ) COMMENT 'Diagnosticos por incidente - o agente nao altera camadas de dados'""",
+    """CREATE TABLE IF NOT EXISTS workspace.agent.narrativas (
+        agent_run_id STRING, incidente_id STRING, llm_status STRING, modelo STRING, explicacao STRING,
+        perguntas STRING, erro STRING, tokens_in BIGINT, tokens_out BIGINT, criado_em TIMESTAMP
+    ) COMMENT 'Explicacao por incidente gerada por LLM e validada contra a evidencia'""",
 ]
 
 INSERT_DIAG = """INSERT INTO workspace.agent.diagnosticos VALUES (
     :run_id, :incidente_id, :fonte, :source_table, :classificacao, :ocorrencias, :registros, :pedidos,
     :impacto_valor, :decisao_humana, :resumo, :proposta, :evidencia, current_timestamp())"""
+
+INSERT_NARR = """INSERT INTO workspace.agent.narrativas VALUES (
+    :run_id, :incidente_id, :llm_status, :modelo, :explicacao, :perguntas, :erro, :tokens_in, :tokens_out,
+    current_timestamp())"""
 
 INSERT_EXEC = """INSERT INTO workspace.agent.execucoes VALUES (
     :run_id, :iniciado_em, current_timestamp(), :modo, :status, :incidentes, :sql_calls, :llm_calls, :erro)"""
@@ -59,7 +67,7 @@ def diagnosticos_orfaos(db):
     if not orfaos:
         return []
     presenca = {r["chave"]: r for r in tools.presenca_cabecalho(db)}
-    carga = tools.carga_cabecalho(db)
+    carga = tools.carga_cabecalho(db, min(r["primeira"] for r in orfaos))
     carga_ok = None if carga is None else carga["status"] == "OK"
     grupos = {}
     for r in orfaos:
@@ -106,7 +114,7 @@ def _para_tela(d):
     return {**d, "evidencia": ev}
 
 
-def gravar(db, run_id, inicio, status, erro, diags):
+def gravar(db, run_id, inicio, modo, status, erro, diags, narrs, modelo, llm_calls):
     for ddl in DDL:
         db.write(ddl)
     for d in diags:
@@ -118,32 +126,53 @@ def gravar(db, run_id, inicio, status, erro, diags):
             "decisao_humana": d["decisao_humana"], "resumo": d["resumo"], "proposta": d["proposta"],
             "evidencia": json.dumps(d["evidencia"], ensure_ascii=False, default=str),
         })
+    for n in narrs:
+        db.write(INSERT_NARR, {
+            "run_id": run_id, "incidente_id": n["incidente_id"], "llm_status": n["llm_status"],
+            "modelo": modelo, "explicacao": n["explicacao"],
+            "perguntas": json.dumps(n["perguntas"], ensure_ascii=False), "erro": n["erro"],
+            "tokens_in": (n["tokens_in"], "BIGINT"), "tokens_out": (n["tokens_out"], "BIGINT"),
+        })
     db.write(INSERT_EXEC, {
-        "run_id": run_id, "iniciado_em": (inicio, "TIMESTAMP"), "modo": "deterministico",
+        "run_id": run_id, "iniciado_em": (inicio, "TIMESTAMP"), "modo": modo,
         "status": status, "incidentes": (len(diags), "INT"), "sql_calls": (db.calls, "INT"),
-        "llm_calls": (0, "INT"), "erro": erro,
+        "llm_calls": (llm_calls, "INT"), "erro": erro,
     })
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Agente de quarentena - nucleo deterministico")
+    ap = argparse.ArgumentParser(description="Agente de quarentena")
     ap.add_argument("--profile", default="dbt-lakehouse-free")
     ap.add_argument("--warehouse", default="6ad31e4709e166fb")
+    ap.add_argument("--endpoint", default=llm_mod.ENDPOINT)
+    ap.add_argument("--sem-llm", action="store_true")
+    ap.add_argument("--simular-falha", choices=["INDISPONIVEL", "RESPOSTA_INVALIDA"])
+    ap.add_argument("--max-llm-calls", type=int, default=4)
     ap.add_argument("--gravar", action="store_true", help="grava em workspace.agent; sem a flag apenas imprime")
     a = ap.parse_args(argv)
     db = Db(a.profile, a.warehouse)
+    if a.sem_llm:
+        llm, modo = None, "deterministico"
+    elif a.simular_falha == "INDISPONIVEL":
+        llm, modo = llm_mod.llm_indisponivel, "simulado_indisponivel"
+    elif a.simular_falha == "RESPOSTA_INVALIDA":
+        llm, modo = llm_mod.llm_resposta_invalida, "simulado_resposta_invalida"
+    else:
+        llm, modo = llm_mod.databricks_llm(db.w, a.endpoint), "llm"
     run_id = uuid.uuid4().hex
     inicio = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-    status, erro, diags = "OK", None, []
+    status, erro, diags, narrs, calls, tin, tout = "OK", None, [], [], 0, 0, 0
     try:
         diags = diagnosticos_invalidos(db) + diagnosticos_orfaos(db)
+        narrs, calls, tin, tout = narrate.narrar(diags, llm, a.max_llm_calls)
     except Exception as e:  # noqa: BLE001 - registrado na execucao
         status, erro = "ERRO", str(e)[:1000]
-    print(json.dumps({"agent_run_id": run_id, "status": status, "erro": erro, "sql_calls": db.calls,
-                      "diagnosticos": [_para_tela(d) for d in diags]},
+    print(json.dumps({"agent_run_id": run_id, "modo": modo, "status": status, "erro": erro,
+                      "sql_calls": db.calls, "llm_calls": calls, "tokens_in": tin, "tokens_out": tout,
+                      "diagnosticos": [_para_tela(d) for d in diags], "narrativas": narrs},
                      ensure_ascii=False, indent=2, default=str))
     if a.gravar:
-        gravar(db, run_id, inicio, status, erro, diags)
+        gravar(db, run_id, inicio, modo, status, erro, diags, narrs, a.endpoint if llm else None, calls)
         print(f"gravado: agent_run_id={run_id}")
     return 0 if status == "OK" else 1
 

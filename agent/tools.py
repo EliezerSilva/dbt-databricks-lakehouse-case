@@ -40,12 +40,19 @@ LEFT JOIN workspace.silver.silver_pedidos_cabecalho s ON s.order_id = o.join_key
 GROUP BY o.join_key_value
 """
 
-CARGA_CABECALHO = """
+_CARGA_COLS = """
 SELECT source_file, target_table, status, records_loaded, validation_message,
        cast(pipeline_execution_timestamp AS STRING) AS executado_em
 FROM workspace.control.ingestion_log
 WHERE target_table LIKE '%bronze_erp_pedidos_cabecalho'
+"""
+
+CARGA_ANTERIOR = _CARGA_COLS + """  AND pipeline_execution_timestamp <= cast(:antes AS TIMESTAMP)
 ORDER BY pipeline_execution_timestamp DESC
+LIMIT 1
+"""
+
+CARGA_RECENTE = _CARGA_COLS + """ORDER BY pipeline_execution_timestamp DESC
 LIMIT 1
 """
 
@@ -62,6 +69,9 @@ def presenca_cabecalho(db):
     return db.read(PRESENCA_CABECALHO)
 
 
-def carga_cabecalho(db):
-    rows = db.read(CARGA_CABECALHO)
-    return rows[0] if rows else None
+def carga_cabecalho(db, antes):
+    rows = db.read(CARGA_ANTERIOR, {"antes": antes})
+    if rows:
+        return {**rows[0], "recorte": "anterior_aos_orfaos"}
+    rows = db.read(CARGA_RECENTE)
+    return {**rows[0], "recorte": "mais_recente"} if rows else None

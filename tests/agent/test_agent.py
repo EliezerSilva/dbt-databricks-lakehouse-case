@@ -73,5 +73,7 @@ class TestSqlDoAgente(unittest.TestCase):
             check_write(ddl)
         check_write(run.INSERT_DIAG)
         check_write(run.INSERT_EXEC)
-        for sql in (tools.INVALIDOS, tools.ORFAOS, tools.PRESENCA_CABECALHO, tools.CARGA_CABECALHO):
+        check_write(run.INSERT_NARR)
+        for sql in (tools.INVALIDOS, tools.ORFAOS, tools.PRESENCA_CABECALHO,
+                    tools.CARGA_ANTERIOR, tools.CARGA_RECENTE):
             check_read(sql)
