@@ -64,3 +64,14 @@ class TestGuardas(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSqlDoAgente(unittest.TestCase):
+    def test_sql_reais_passam_nas_guardas(self):
+        from agent import run, tools
+        for ddl in run.DDL:
+            check_write(ddl)
+        check_write(run.INSERT_DIAG)
+        check_write(run.INSERT_EXEC)
+        for sql in (tools.INVALIDOS, tools.ORFAOS, tools.PRESENCA_CABECALHO, tools.CARGA_CABECALHO):
+            check_read(sql)

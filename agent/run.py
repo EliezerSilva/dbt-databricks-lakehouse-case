@@ -16,7 +16,7 @@ DDL = [
         agent_run_id STRING, incidente_id STRING, fonte STRING, source_table STRING, classificacao STRING,
         ocorrencias BIGINT, registros BIGINT, pedidos BIGINT, impacto_valor DOUBLE, decisao_humana BOOLEAN,
         resumo STRING, proposta STRING, evidencia STRING, criado_em TIMESTAMP
-    ) COMMENT 'Diagnosticos por incidente; o agente nao altera camadas de dados'""",
+    ) COMMENT 'Diagnosticos por incidente - o agente nao altera camadas de dados'""",
 ]
 
 INSERT_DIAG = """INSERT INTO workspace.agent.diagnosticos VALUES (
