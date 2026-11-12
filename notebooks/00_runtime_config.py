@@ -13,14 +13,6 @@ EXPECTED_CONFIG = {
     "control_schema": "control_dev",
 }
 
-# Leitura de fontes: volume original ou cenarios sinteticos explicitamente listados.
-# Os schemas de escrita continuam exigindo igualdade exata (*_dev).
-ALLOWED_SOURCE_ROOTS = {
-    EXPECTED_CONFIG["source_root"],
-    "/Volumes/workspace/cenarios/fontes/g2",
-    "/Volumes/workspace/cenarios/fontes/g4",
-}
-
 RUNTIME_CONFIG = {}
 
 for key, expected in EXPECTED_CONFIG.items():
@@ -31,8 +23,7 @@ for key, expected in EXPECTED_CONFIG.items():
             f"Missing required DAB parameter: {key}"
         ) from exc
 
-    allowed = ALLOWED_SOURCE_ROOTS if key == "source_root" else {expected}
-    if value not in allowed:
+    if value != expected:
         raise ValueError(
             f"DEV isolation violation: {key}={value!r}"
         )
