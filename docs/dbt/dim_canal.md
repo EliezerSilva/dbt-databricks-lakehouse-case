@@ -41,7 +41,7 @@ A paridade atual decorre da ordenação, não de equivalência formal entre as r
 | `not_null` em `ativo` | warn | WARN 1 (`ch07`) |
 | `not_null` em `id_canal` (source) | error | PASS |
 | `unique` em `id_canal` (source) | warn | WARN 1 (`CH05`) |
-| `assert_dim_canal_reconciles_with_pyspark` | error | PASS |
+| `reconciles_with` contra `pyspark_gold.dim_canal` (antes: teste singular `assert_dim_canal_reconciles_with_pyspark`) | error | PASS |
 
 Resultado: `PASS=7 WARN=3 ERROR=0`.
 

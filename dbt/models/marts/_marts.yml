@@ -3,6 +3,11 @@ version: 2
 models:
   - name: dim_canal
     description: Dimensao de canais. Paridade com workspace.gold.dim_canal (PySpark).
+    data_tests:
+      - reconciles_with:
+          arguments:
+            compare_model: source('pyspark_gold', 'dim_canal')
+            columns: [sk_canal, canal_id, nome_canal, tipo_canal, ativo]
     columns:
       - name: sk_canal
         description: sha2(canal_id, 256) sobre o valor cru, sem normalizacao.
@@ -24,6 +29,40 @@ models:
               arguments:
                 values: ["Direto", "Indireto", "Digital"]
       - name: ativo
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+
+  - name: dim_regiao
+    description: Dimensao de regioes. Paridade com workspace.gold.dim_regiao (PySpark).
+    data_tests:
+      - reconciles_with:
+          arguments:
+            compare_model: source('pyspark_gold', 'dim_regiao')
+            columns: [sk_regiao, regional_code, nome_regiao, estado_sede, gestor]
+    columns:
+      - name: sk_regiao
+        description: sha2(regional_code, 256) apos a normalizacao feita na Silver.
+        data_tests:
+          - unique
+          - not_null
+      - name: regional_code
+        data_tests:
+          - unique
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["CO", "N", "NE", "S", "SE"]
+      - name: nome_regiao
+        data_tests:
+          - not_null
+      - name: estado_sede
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: gestor
         data_tests:
           - not_null:
               config:

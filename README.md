@@ -76,9 +76,10 @@ O dbt lê as tabelas originais (`workspace.silver`, `workspace.gold`) e escreve 
 | Projeto dbt Core em `dbt/` (dbt-databricks, SQL Warehouse serverless, OAuth U2M) | Implementado |
 | `stg_canais` — view em `workspace.dbt_staging` | Implementado |
 | `dim_canal` — table em `workspace.dbt_gold` | Implementado, testado e reconciliado com `workspace.gold.dim_canal` |
-| Demais dimensões, fato e métricas | Não iniciado |
+| `dim_regiao` — table em `workspace.dbt_gold` | Implementado, testado e reconciliado com `workspace.gold.dim_regiao` |
+| Demais dimensões (cliente, produto, vendedor, data), fato e métricas | Não iniciado |
 
-Detalhes da primeira dimensão: [docs/dbt/dim_canal.md](docs/dbt/dim_canal.md).
+Detalhes por dimensão: [dim_canal](docs/dbt/dim_canal.md), [dim_regiao](docs/dbt/dim_regiao.md).
 
 ### Execução do dbt
 
@@ -101,8 +102,7 @@ lakehouse_case:
 ```bash
 cd dbt
 dbt debug
-dbt run
-dbt test
+dbt build
 dbt docs generate
 ```
 
