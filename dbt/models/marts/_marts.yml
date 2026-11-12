@@ -116,3 +116,103 @@ models:
           - accepted_values:
               arguments:
                 values: ["Ativo", "Inativo", "NAO_INFORMADO"]
+
+  - name: dim_cliente
+    description: Dimensao de clientes (SCD1, versao mais recente). Paridade com workspace.gold.dim_cliente exceto divergencias declaradas.
+    data_tests:
+      - reconciles_with:
+          arguments:
+            compare_model: source('pyspark_gold', 'dim_cliente')
+            columns: [sk_cliente, customer_id, nome_cliente, segmento, porte, cidade, estado, email, data_cadastro, status_cliente]
+            exceptions: ref('reconciliacao_excecoes')
+            key_column: customer_id
+    columns:
+      - name: sk_cliente
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: nome_cliente
+        data_tests: [not_null]
+      - name: estado
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
+      - name: segmento
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - accepted_values:
+              arguments:
+                values: ["Educação", "Financeiro", "Indústria", "Saúde", "Serviços", "Varejo"]
+      - name: porte
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - accepted_values:
+              arguments:
+                values: ["Grande", "Média", "Pequena"]
+      - name: status_cliente
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Ativo", "Inativo", "NAO_INFORMADO"]
+      - name: email
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - like_pattern:
+              arguments:
+                pattern: "%@%"
+              config:
+                severity: warn
+      - name: data_cadastro
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+
+  - name: dim_produto
+    description: Dimensao de produtos (SCD1, versao mais recente). Paridade com workspace.gold.dim_produto exceto divergencias declaradas.
+    data_tests:
+      - reconciles_with:
+          arguments:
+            compare_model: source('pyspark_gold', 'dim_produto')
+            columns: [sk_produto, product_id, nome_produto, categoria, subcategoria, familia, preco_lista, currency, tags_csv, status]
+            exceptions: ref('reconciliacao_excecoes')
+            key_column: product_id
+    columns:
+      - name: sk_produto
+        data_tests: [unique, not_null]
+      - name: product_id
+        data_tests: [unique, not_null]
+      - name: nome_produto
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: categoria
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Assinatura", "Hardware", "Serviços", "Software"]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Ativo", "Descontinuado", "Inativo", "NAO_INFORMADO"]
+      - name: currency
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["BRL"]
+      - name: preco_lista
+        data_tests:
+          - castable_to_double:
+              config:
+                severity: warn

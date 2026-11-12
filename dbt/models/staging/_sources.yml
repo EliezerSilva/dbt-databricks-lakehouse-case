@@ -33,6 +33,36 @@ sources:
                   config:
                     severity: warn
 
+      - name: silver_clientes
+        description: Sem deduplicacao na Silver PySpark; customer_id duplicado em C0010, C0025 e c0051.
+        columns:
+          - name: customer_id
+            data_tests:
+              - not_null
+              - unique:
+                  config:
+                    severity: warn
+          - name: updated_at
+            data_tests:
+              - not_null:
+                  config:
+                    severity: warn
+
+      - name: silver_produtos
+        description: Sem deduplicacao na Silver PySpark; product_id duplicado em P0006.
+        columns:
+          - name: product_id
+            data_tests:
+              - not_null
+              - unique:
+                  config:
+                    severity: warn
+          - name: updated_at
+            data_tests:
+              - not_null:
+                  config:
+                    severity: warn
+
   - name: pyspark_gold
     description: Gold PySpark original, baseline de reconciliacao (somente leitura).
     database: workspace
@@ -41,3 +71,5 @@ sources:
       - name: dim_canal
       - name: dim_regiao
       - name: dim_vendedor
+      - name: dim_cliente
+      - name: dim_produto

@@ -1,0 +1,4 @@
+modelo,chave,motivo
+dim_cliente,C0010,"SCD1: versao mais recente (2026-01-10) informa segmento Financeiro; baseline PySpark manteve a versao de 2026-01-09 sem segmento"
+dim_cliente,C0025,"SCD1: versao mais recente (2025-08-01) informa estado SC; baseline PySpark manteve a versao de 2025-05-07 com RJ"
+dim_produto,P0006,"SCD1: versao mais recente (2026-02-12) renomeia para Produto 6 revisado; baseline PySpark manteve o nome anterior"

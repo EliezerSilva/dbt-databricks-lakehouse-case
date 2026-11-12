@@ -17,3 +17,7 @@ models:
     marts:
       +schema: gold
       +materialized: table
+
+seeds:
+  lakehouse_case:
+    +schema: staging
