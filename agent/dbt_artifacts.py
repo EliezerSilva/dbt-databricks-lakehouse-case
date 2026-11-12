@@ -2,7 +2,7 @@ import json
 import re
 from pathlib import Path
 
-TARGET_POR_AMBIENTE = {"original": "dev", "dev": "cenarios"}
+TARGET_POR_AMBIENTE = {"original": "dev", "cenarios": "cenarios"}
 _REL = re.compile(r"^`workspace`\.`dbt_[a-z0-9_]+`\.`[a-z0-9_]+`$")
 _COL = re.compile(r"^[a-z_][a-z0-9_]*$")
 

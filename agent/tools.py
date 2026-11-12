@@ -1,6 +1,7 @@
 AMBIENTES = {
     "original": {"bronze": "workspace.bronze", "silver": "workspace.silver", "control": "workspace.control"},
     "dev": {"bronze": "workspace.bronze_dev", "silver": "workspace.silver_dev", "control": "workspace.control_dev"},
+    "cenarios": {"bronze": "workspace.bronze_cen", "silver": "workspace.silver_cen", "control": "workspace.control_cen"},
 }
 
 INVALIDOS = """

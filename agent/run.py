@@ -106,7 +106,10 @@ def diagnosticos_dbt(db, amb, target_dir, avisos):
     if not target_dir:
         return []
     rr, mf = dbt_artifacts.carregar(target_dir)
-    alvo, esperado = dbt_artifacts.target_de(rr), dbt_artifacts.TARGET_POR_AMBIENTE[amb]
+    alvo, esperado = dbt_artifacts.target_de(rr), dbt_artifacts.TARGET_POR_AMBIENTE.get(amb)
+    if esperado is None:
+        avisos.append(f"dbt: ambiente '{amb}' nao tem target dbt associado")
+        return []
     if alvo != esperado:
         avisos.append(f"dbt: artefatos do target '{alvo}' ignorados; ambiente '{amb}' exige '{esperado}'")
         return []
