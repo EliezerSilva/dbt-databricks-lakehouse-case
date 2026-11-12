@@ -23,6 +23,16 @@ sources:
               - not_null
               - unique
 
+      - name: silver_vendedores
+        description: Sem deduplicacao na Silver PySpark; seller_id duplicado em V004 e V008.
+        columns:
+          - name: seller_id
+            data_tests:
+              - not_null
+              - unique:
+                  config:
+                    severity: warn
+
   - name: pyspark_gold
     description: Gold PySpark original, baseline de reconciliacao (somente leitura).
     database: workspace
@@ -30,3 +40,4 @@ sources:
     tables:
       - name: dim_canal
       - name: dim_regiao
+      - name: dim_vendedor
