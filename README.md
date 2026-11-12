@@ -106,6 +106,23 @@ dbt build
 dbt docs generate
 ```
 
+## Agente de quarentena
+
+Agente que diagnostica incidentes de qualidade (quarentena da Silver, cargas em NOK e falhas de testes dbt),
+classifica de forma determinística, explica via LLM com validação contra a evidência e propõe correção
+por PR. Não altera camadas de dados. Benchmark de 5 cenários: 5/5.
+Detalhes: [docs/agent/agente_quarentena.md](docs/agent/agente_quarentena.md).
+
+## Roadmap
+
+| Fase | Entrega | Status |
+|---|---|---|
+| 1 | Dimensões no dbt | `dim_canal` e `dim_regiao` concluídas; vendedor, cliente, produto e data pendentes |
+| 2 | `fato_pedidos` no dbt com testes de relacionamento | Pendente |
+| 3 | Camada semântica (métricas governadas) | Pendente |
+| 4 | Ontologia (entidades, relações, sinônimos) | Iniciada: registro de domínios do agente |
+| 5 | Agente de quarentena | Implementado |
+
 ## Objetivo da modernização
 
 Introduzir dbt nas transformações relacionais das camadas Silver e Gold,
