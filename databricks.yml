@@ -4,6 +4,12 @@ bundle:
 include:
   - resources/*.yml
 
+sync:
+  exclude:
+    - tests/**
+    - docs/**
+    - diagrams/**
+
 workspace:
   profile: dbt-lakehouse-free
 
