@@ -67,3 +67,52 @@ models:
           - not_null:
               config:
                 severity: warn
+
+  - name: dim_vendedor
+    description: Dimensao de vendedores. Paridade com workspace.gold.dim_vendedor (PySpark).
+    data_tests:
+      - reconciles_with:
+          arguments:
+            compare_model: source('pyspark_gold', 'dim_vendedor')
+            columns: [sk_vendedor, seller_id, nome_vendedor, canal_id, regional_code, data_admissao, status]
+    columns:
+      - name: sk_vendedor
+        description: sha2(seller_id, 256) sobre o valor cru.
+        data_tests:
+          - unique
+          - not_null
+      - name: seller_id
+        data_tests:
+          - unique
+          - not_null
+      - name: nome_vendedor
+        data_tests:
+          - not_null
+      - name: canal_id
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - relationships:
+              arguments:
+                to: ref('dim_canal')
+                field: canal_id
+      - name: regional_code
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_regiao')
+                field: regional_code
+              config:
+                where: "regional_code <> 'NAO_INFORMADO'"
+      - name: data_admissao
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Ativo", "Inativo", "NAO_INFORMADO"]
