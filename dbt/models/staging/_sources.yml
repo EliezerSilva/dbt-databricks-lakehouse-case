@@ -63,6 +63,21 @@ sources:
                   config:
                     severity: warn
 
+      - name: silver_pedidos_cabecalho
+        columns:
+          - name: order_id
+            data_tests:
+              - not_null
+              - unique:
+                  config:
+                    severity: warn
+
+      - name: silver_logistica
+        columns:
+          - name: delivery_id
+            data_tests:
+              - not_null
+
   - name: pyspark_gold
     description: Gold PySpark original, baseline de reconciliacao (somente leitura).
     database: workspace
@@ -73,3 +88,4 @@ sources:
       - name: dim_vendedor
       - name: dim_cliente
       - name: dim_produto
+      - name: dim_data

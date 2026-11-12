@@ -216,3 +216,38 @@ models:
           - castable_to_double:
               config:
                 severity: warn
+
+  - name: dim_data
+    description: Calendario diario de (min - 30) a (max + 30) das datas de pedidos e entregas. Paridade com workspace.gold.dim_data.
+    data_tests:
+      - reconciles_with:
+          arguments:
+            compare_model: source('pyspark_gold', 'dim_data')
+            columns: [data, sk_data, ano, mes, dia, trimestre, semana_ano, nome_mes, dia_semana_iso, nome_dia_semana, flag_fim_semana, ano_mes]
+    columns:
+      - name: data
+        data_tests: [unique, not_null]
+      - name: sk_data
+        data_tests: [unique, not_null]
+      - name: dia_semana_iso
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7]
+                quote: false
+      - name: flag_fim_semana
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: nome_mes
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+      - name: nome_dia_semana
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
