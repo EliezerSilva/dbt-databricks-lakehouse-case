@@ -251,3 +251,111 @@ models:
           - accepted_values:
               arguments:
                 values: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+
+  - name: fato_pedidos
+    description: Fato de itens de pedido (1 linha por item com cabecalho). Paridade com workspace.gold.fato_pedidos.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, item_seq]
+      - reconciles_with:
+          arguments:
+            compare_model: source('pyspark_gold', 'fato_pedidos')
+            columns: [order_id, item_seq, sk_cliente, sk_produto, sk_canal, sk_regiao, sk_vendedor, sk_data_pedido, sk_data_prevista, quantidade, valor_unitario, valor_item, receita_liquida_item, valor_bruto_pedido, valor_desconto_pedido, valor_liquido_pedido, custo_entrega, tempo_entrega_dias, status_order, item_status, status_entrega, flag_cancelado, flag_atrasado, dias_atraso, flag_tem_ocorrencia, qtd_ocorrencias, flag_cancel_request, flag_devolucao, data_pedido, data_prevista_entrega, data_envio, data_entrega_real, order_source]
+    columns:
+      - name: order_id
+        data_tests: [not_null]
+      - name: item_seq
+        data_tests: [not_null]
+      - name: sk_cliente
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - relationships:
+              arguments:
+                to: ref('dim_cliente')
+                field: sk_cliente
+      - name: sk_produto
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - relationships:
+              arguments:
+                to: ref('dim_produto')
+                field: sk_produto
+      - name: sk_vendedor
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - relationships:
+              arguments:
+                to: ref('dim_vendedor')
+                field: sk_vendedor
+      - name: sk_canal
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - relationships:
+              arguments:
+                to: ref('dim_canal')
+                field: sk_canal
+      - name: sk_regiao
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - relationships:
+              arguments:
+                to: ref('dim_regiao')
+                field: sk_regiao
+      - name: sk_data_pedido
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - relationships:
+              arguments:
+                to: ref('dim_data')
+                field: sk_data
+      - name: flag_cancelado
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: flag_atrasado
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: flag_tem_ocorrencia
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: flag_cancel_request
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: flag_devolucao
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: custo_entrega
+        data_tests:
+          - castable_to_double:
+              config:
+                severity: warn
+
+  - name: itens_sem_cabecalho
+    description: Itens cujo order_id nao existe no cabecalho (orfaos). View idempotente.

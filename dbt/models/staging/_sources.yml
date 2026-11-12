@@ -78,6 +78,18 @@ sources:
             data_tests:
               - not_null
 
+      - name: silver_pedidos_itens
+        columns:
+          - name: order_id
+            data_tests:
+              - not_null
+
+      - name: silver_atendimento_ocorrencias
+        columns:
+          - name: ticket_id
+            data_tests:
+              - not_null
+
   - name: pyspark_gold
     description: Gold PySpark original, baseline de reconciliacao (somente leitura).
     database: workspace
@@ -89,3 +101,4 @@ sources:
       - name: dim_cliente
       - name: dim_produto
       - name: dim_data
+      - name: fato_pedidos
