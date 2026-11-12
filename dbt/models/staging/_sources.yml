@@ -15,9 +15,18 @@ sources:
                   config:
                     severity: warn
 
+      - name: silver_regioes
+        description: Deduplicada na Silver PySpark (row_number por regional_code, preferindo state = SP).
+        columns:
+          - name: regional_code
+            data_tests:
+              - not_null
+              - unique
+
   - name: pyspark_gold
     description: Gold PySpark original, baseline de reconciliacao (somente leitura).
     database: workspace
     schema: gold
     tables:
       - name: dim_canal
+      - name: dim_regiao
