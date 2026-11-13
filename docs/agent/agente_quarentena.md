@@ -38,6 +38,34 @@ do registro de domínios e sinônimos (`agent/dominios.py`), embrião da ontolog
 | Falha de uma fonte não derruba as demais (`status = PARCIAL`) | `agent/run.py` | execução |
 | Resposta do LLM em JSON e números restritos à evidência | `agent/narrate.py` | `TestNumeros`, `TestNarrar` |
 | Fallback para endpoint indisponível, resposta inválida e orçamento esgotado | `narrate.narrar` | `TestNarrar` |
+| Ferramentas em lista fechada, parâmetros validados, limite de passos e orçamento na investigação | `agent/investigate.py` | `TestInvestigacao`, `TestValidacao` |
+| Falha inesperada isolada por incidente | `investigate.investigar_todos` | `TestIsolamento` |
+
+## Investigação conduzida pelo LLM (tool calling)
+
+Modo padrão (`--modo-llm investigacao`). O LLM recebe apenas o alerta (identificador, classificação, fonte, resumo e
+proposta) e conduz a investigação chamando ferramentas: decide quais passos se aplicam, com quais parâmetros e quando parar.
+A classificação permanece determinística e não pode ser alterada pelo LLM.
+
+| Ferramenta | Retorno |
+|---|---|
+| `detalhar_incidente` | Contagens, impacto, proposta e ponteiros (arquivos relacionados, domínio afetado) |
+| `amostrar_registros` | Até 5 registros afetados (consulta real à quarentena para órfãos) |
+| `historico_cargas` | Últimas 5 cargas de um arquivo no `ingestion_log` |
+| `dominio_valores` | Códigos válidos e sinônimos do domínio |
+
+Controles: lista fechada de ferramentas; parâmetros validados (extras rejeitados, `incidente_id` restrito à execução,
+limite de 1 a 5, nome de arquivo por regex, domínio por enumeração); chamada rejeitada volta ao LLM como erro;
+no máximo 4 chamadas por incidente, depois a resposta é forçada sem ferramentas; orçamento global de chamadas;
+números da resposta restritos às saídas das ferramentas efetivamente chamadas; falha inesperada isolada por incidente.
+Rastro de cada chamada em `workspace.agent.chamadas_ferramentas`.
+
+Execução de referência em 2026-11-12 (ambiente `cenarios`): 4 incidentes, 12 chamadas de ferramenta, todas válidas
+(4 `detalhar_incidente`, 4 `amostrar_registros`, 3 `historico_cargas`, 1 `dominio_valores`); `historico_cargas` apenas
+nos incidentes com arquivo relacionado e `dominio_valores` apenas no incidente de domínio; nomes de arquivo obtidos dos
+ponteiros do passo anterior; 16 chamadas ao LLM, 31.212 tokens de entrada; 4/4 narrativas aprovadas na validação.
+
+O modo `--modo-llm narrativa` mantém o comportamento anterior (contexto completo, uma chamada por incidente).
 
 ## Persistência
 
@@ -46,6 +74,7 @@ do registro de domínios e sinônimos (`agent/dominios.py`), embrião da ontolog
 | `workspace.agent.execucoes` | Uma linha por execução: ambiente, modo, status, contagem de incidentes, chamadas SQL e LLM, avisos |
 | `workspace.agent.diagnosticos` | Um registro por incidente: classificação, ocorrências, impacto, decisão humana, resumo, proposta e evidência (JSON) |
 | `workspace.agent.narrativas` | Explicação do LLM por incidente, status de validação, modelo e tokens |
+| `workspace.agent.chamadas_ferramentas` | Rastro das chamadas de ferramenta: passo, ferramenta, parâmetros, status, linhas e duração |
 
 ## Execução
 
