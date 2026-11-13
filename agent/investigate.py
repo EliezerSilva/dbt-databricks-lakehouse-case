@@ -2,7 +2,7 @@ import json
 import re
 import time
 
-from agent import dominios, narrate, tools
+from agent import dominios, narrate, ontologia, tools
 from agent.llm import LlmIndisponivel
 
 MAX_PASSOS = 4
@@ -156,6 +156,7 @@ class Ferramentas:
             out["dominio_afetado"] = {"modelo": ev["modelo"], "coluna": ev["coluna"]}
         if d["fonte"] == "cobertura_semantica":
             out["dimensao_afetada"] = ev.get("dimensao")
+            out["cadeia_de_atribuicao"] = ontologia.cadeia(ev.get("dimensao"))
         out["aprofundar"] = ("amostrar_registros para os registros; historico_cargas para as cargas dos arquivos "
                              "relacionados; impacto_metricas para a distribuição da dimensão afetada")
         return out
@@ -167,6 +168,12 @@ class Ferramentas:
             chaves = ev["chaves"][:limite]
             rows = self.db.read(tools.sql(AMOSTRA_ORFAOS, self.amb), {"chaves": json.dumps(chaves)})
             return {"registros": rows[:limite]}
+        if d["fonte"] == "cobertura_semantica":
+            if tools.SEMANTICA.get(self.amb) is None:
+                raise ValueError("camada semantica indisponivel neste ambiente")
+            rows = self.db.read(ontologia.sql_causa(ev["dimensao"]))
+            return {"cadeia": ontologia.cadeia(ev["dimensao"]), "registros": rows[:limite],
+                    "registros_sem_correspondencia": len(rows), "teto_da_consulta": 20}
         if d["fonte"] == "dbt":
             return {"registros": (ev.get("valores_fora") or [])[:limite]}
         if d["fonte"] == "tabelas_invalidas":

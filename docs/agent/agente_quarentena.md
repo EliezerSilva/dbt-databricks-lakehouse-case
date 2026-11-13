@@ -52,7 +52,7 @@ A classificação permanece determinística e não pode ser alterada pelo LLM.
 | Ferramenta | Retorno |
 |---|---|
 | `detalhar_incidente` | Contagens, impacto, proposta e ponteiros (arquivos relacionados, domínio afetado) |
-| `amostrar_registros` | Até 5 registros afetados (consulta real à quarentena para órfãos) |
+| `amostrar_registros` | Até 5 registros afetados (consulta real à quarentena para órfãos; para lacunas, registros sem correspondência na cadeia de atribuição da [ontologia](../ontologia.md)) |
 | `historico_cargas` | Últimas 5 cargas de um arquivo no `ingestion_log` |
 | `dominio_valores` | Códigos válidos e sinônimos do domínio |
 | `impacto_metricas` | Receita líquida e pedidos por valor de uma dimensão, via `MEASURE()` (somente ambiente `original`) |

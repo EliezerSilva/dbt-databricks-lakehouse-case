@@ -83,7 +83,7 @@ O dbt lê as tabelas originais (`workspace.silver`, `workspace.gold`) e escreve 
 | `fato_pedidos` — table em `workspace.dbt_gold` | Implementado, testado (grão, relacionamentos) e reconciliado com `workspace.gold.fato_pedidos` (33 colunas) |
 | Camada semântica — `mv_vendas`, `mv_pedidos` (Metric Views) | Implementada; métricas inalteradas reconciliadas com o PySpark, métricas de pedido corrigidas para o grão correto |
 
-Detalhes por dimensão: [dim_canal](docs/dbt/dim_canal.md), [dim_regiao](docs/dbt/dim_regiao.md), [dim_vendedor](docs/dbt/dim_vendedor.md), [dim_cliente e dim_produto](docs/dbt/dim_cliente_produto.md), [dim_data](docs/dbt/dim_data.md), [fato_pedidos](docs/dbt/fato_pedidos.md), [camada semântica](docs/semantic/camada_semantica.md).
+Detalhes por dimensão: [dim_canal](docs/dbt/dim_canal.md), [dim_regiao](docs/dbt/dim_regiao.md), [dim_vendedor](docs/dbt/dim_vendedor.md), [dim_cliente e dim_produto](docs/dbt/dim_cliente_produto.md), [dim_data](docs/dbt/dim_data.md), [fato_pedidos](docs/dbt/fato_pedidos.md), [camada semântica](docs/semantic/camada_semantica.md), [ontologia](docs/ontologia.md).
 
 ### Execução do dbt
 
@@ -122,7 +122,8 @@ Detalhes: [docs/agent/agente_quarentena.md](docs/agent/agente_quarentena.md).
 Cada PR executa no GitHub Actions (`.github/workflows/ci.yml`):
 
 - testes unitários do agente: guardas de SQL, classificação, validação das respostas do LLM e fallbacks;
-- `dbt parse` com contagem mínima de testes dbt (falha se testes forem removidos).
+- `dbt parse` com contagem mínima de testes dbt (falha se testes forem removidos);
+- validação da ontologia contra o manifest do dbt.
 
 A branch `main` é protegida: merge somente via PR com os dois checks verdes, sem exceção para administradores.
 A execução contra o Databricks (build, reconciliação e benchmark do agente) ainda é manual.
@@ -134,7 +135,7 @@ A execução contra o Databricks (build, reconciliação e benchmark do agente) 
 | 1 | Dimensões no dbt | Concluída: canal, região, vendedor, cliente, produto e data |
 | 2 | `fato_pedidos` no dbt com testes de relacionamento | Concluída |
 | 3 | Camada semântica (métricas governadas) | Concluída: Unity Catalog Metric Views |
-| 4 | Ontologia (entidades, relações, sinônimos) | Iniciada: registro de domínios do agente |
+| 4 | Ontologia | Concluída: `ontologia/ontologia.yml`, consumida pelo agente e validada contra o manifest no CI |
 | 5 | Agente de quarentena | Implementado |
 
 ## Objetivo da modernização

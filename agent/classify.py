@@ -1,4 +1,4 @@
-from agent import dominios
+from agent import dominios, ontologia
 
 DESCARTE_LEGITIMO = "DESCARTE_LEGITIMO"
 DADO_INCOMPLETO_ORIGEM = "DADO_INCOMPLETO_ORIGEM"
@@ -85,10 +85,8 @@ def classify_dominio(modelo, coluna, valores):
     return DRIFT_DE_DOMINIO, resumo, True, proposta
 
 
-_ROTULOS_DIMENSAO = {"canal": "canal", "regiao": "região", "segmento": "segmento de cliente"}
-
-
 def classify_lacuna(dimensao, parcela_pct):
-    rotulo = _ROTULOS_DIMENSAO.get(dimensao, dimensao)
+    a = ontologia.atribuicoes().get(dimensao, {})
+    sufixo = "atribuída" if a.get("genero") == "f" else "atribuído"
     return (LACUNA_DE_ATRIBUICAO,
-            f"{parcela_pct}% da receita líquida sem {rotulo} atribuído na camada semântica.", True)
+            f"{parcela_pct}% da receita líquida sem {a.get('nome', dimensao)} {sufixo} na camada semântica.", True)

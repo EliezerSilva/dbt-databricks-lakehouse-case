@@ -58,3 +58,5 @@ jobs:
           n=$(dbt ls --resource-type test --quiet --profiles-dir "$RUNNER_TEMP/dbt_profiles" | wc -l)
           echo "testes dbt: $n"
           test "$n" -ge 114
+      - name: ontologia contra o manifest
+        run: python -m agent.ontologia --manifest dbt/target/manifest.json
