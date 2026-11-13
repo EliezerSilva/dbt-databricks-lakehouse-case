@@ -9,10 +9,11 @@ ORFAO_DESATUALIZADO = "ORFAO_DESATUALIZADO"
 DRIFT_DE_LAYOUT = "DRIFT_DE_LAYOUT"
 DRIFT_DE_DOMINIO = "DRIFT_DE_DOMINIO"
 FALHA_TESTE_DBT = "FALHA_TESTE_DBT"
+LACUNA_DE_ATRIBUICAO = "LACUNA_DE_ATRIBUICAO"
 NAO_CLASSIFICADO = "NAO_CLASSIFICADO"
 
 TODAS = (DESCARTE_LEGITIMO, DADO_INCOMPLETO_ORIGEM, AUSENTE_NA_ORIGEM, FALHA_DE_CARGA, DESCARTE_A_MONTANTE,
-         ORFAO_DESATUALIZADO, DRIFT_DE_LAYOUT, DRIFT_DE_DOMINIO, FALHA_TESTE_DBT, NAO_CLASSIFICADO)
+         ORFAO_DESATUALIZADO, DRIFT_DE_LAYOUT, DRIFT_DE_DOMINIO, FALHA_TESTE_DBT, LACUNA_DE_ATRIBUICAO, NAO_CLASSIFICADO)
 
 PROPOSTAS = {
     DESCARTE_LEGITIMO: "Nenhuma acao. Descarte previsto pela regra de negocio.",
@@ -24,6 +25,7 @@ PROPOSTAS = {
     DRIFT_DE_LAYOUT: "Confirmar com o dono da fonte se a mudanca de layout e intencional; se for, versionar o novo layout e ajustar a leitura via PR. Carga segue bloqueada.",
     DRIFT_DE_DOMINIO: "Avaliar inclusao dos valores no dominio ou como sinonimos, via PR; nao liberar dados automaticamente.",
     FALHA_TESTE_DBT: "Analisar o teste dbt com falha; requer decisao humana.",
+    LACUNA_DE_ATRIBUICAO: "Identificar na origem os registros sem a chave da dimensao (ex.: vendedores sem canal, clientes sem segmento) e corrigir o cadastro; a receita segue contabilizada, mas sem atribuicao.",
     NAO_CLASSIFICADO: "Sem regra de classificacao; requer analise humana.",
 }
 
@@ -81,3 +83,12 @@ def classify_dominio(modelo, coluna, valores):
     resumo = f"Valores fora do dominio de {modelo}.{coluna}: " + ", ".join(partes) + "."
     proposta = "Proposta: " + "; ".join(props) + ". Alteracao via PR, sem liberar dados automaticamente."
     return DRIFT_DE_DOMINIO, resumo, True, proposta
+
+
+_ROTULOS_DIMENSAO = {"canal": "canal", "regiao": "região", "segmento": "segmento de cliente"}
+
+
+def classify_lacuna(dimensao, parcela_pct):
+    rotulo = _ROTULOS_DIMENSAO.get(dimensao, dimensao)
+    return (LACUNA_DE_ATRIBUICAO,
+            f"{parcela_pct}% da receita líquida sem {rotulo} atribuído na camada semântica.", True)

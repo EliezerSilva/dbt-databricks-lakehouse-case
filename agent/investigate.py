@@ -10,12 +10,14 @@ MAX_PASSOS = 4
 SYSTEM = (
     "Você investiga um incidente de qualidade de dados seguindo o procedimento: 1) detalhar_incidente; "
     "2) verificar na fonte com amostrar_registros; 3) se houver arquivos relacionados, historico_cargas; "
-    "4) se houver domínio afetado, dominio_valores. Pule os passos que não se aplicam; no máximo 4 chamadas. "
+    "4) se houver domínio afetado, dominio_valores; 5) se houver dimensão afetada, impacto_metricas. "
+    "Pule os passos que não se aplicam; no máximo 4 chamadas. "
     "Use o incidente_id recebido. Se o alerta indicar reincidência, mencione-a na explicação. "
     "A classificação recebida é definitiva e não pode ser alterada. O contexto inicial é só o alerta: "
     "números, registros e histórico precisam ser obtidos com as ferramentas antes de serem citados. " + narrate.SYSTEM
 )
 
+DIMENSOES = ("canal", "tipo_canal", "regiao", "segmento", "categoria")
 _MODELOS = sorted({m for m, _ in dominios.DOMINIOS})
 _COLUNAS = sorted({c for _, c in dominios.DOMINIOS})
 
@@ -44,6 +46,12 @@ TOOLS = [
             "modelo": {"type": "string", "enum": _MODELOS},
             "coluna": {"type": "string", "enum": _COLUNAS}},
             "required": ["modelo", "coluna"]}}},
+    {"type": "function", "function": {
+        "name": "impacto_metricas",
+        "description": "Distribuição da receita líquida e dos pedidos por valor de uma dimensão (camada semântica).",
+        "parameters": {"type": "object", "properties": {
+            "dimensao": {"type": "string", "enum": list(DIMENSOES)}},
+            "required": ["dimensao"]}}},
 ]
 
 _PARAMS = {
@@ -51,6 +59,7 @@ _PARAMS = {
     "amostrar_registros": {"incidente_id", "limite"},
     "historico_cargas": {"source_file"},
     "dominio_valores": {"modelo", "coluna"},
+    "impacto_metricas": {"dimensao"},
 }
 _ARQUIVO = re.compile(r"^[A-Za-z0-9_.\-]{1,80}$")
 
@@ -73,6 +82,15 @@ FROM {control}.ingestion_log
 WHERE source_file = :arquivo
 ORDER BY pipeline_execution_timestamp DESC
 LIMIT 5
+"""
+
+
+IMPACTO = """
+SELECT {dim} AS valor, round(MEASURE(receita_liquida), 2) AS receita_liquida, MEASURE(pedidos) AS pedidos
+FROM {mv}
+GROUP BY {dim}
+ORDER BY receita_liquida DESC
+LIMIT 10
 """
 
 
@@ -111,6 +129,8 @@ def validar_args(nome, args, ids_validos):
             raise ValueError("source_file invalido")
     if nome == "dominio_valores" and (args.get("modelo"), args.get("coluna")) not in dominios.DOMINIOS:
         raise ValueError("dominio desconhecido")
+    if nome == "impacto_metricas" and args.get("dimensao") not in DIMENSOES:
+        raise ValueError("dimensao desconhecida")
     return args
 
 
@@ -134,7 +154,10 @@ class Ferramentas:
         out["arquivos_relacionados"] = sorted(_arquivos(ev))
         if ev.get("teste") == "accepted_values" and ev.get("modelo") and ev.get("coluna"):
             out["dominio_afetado"] = {"modelo": ev["modelo"], "coluna": ev["coluna"]}
-        out["aprofundar"] = "amostrar_registros para os registros; historico_cargas para as cargas dos arquivos relacionados"
+        if d["fonte"] == "cobertura_semantica":
+            out["dimensao_afetada"] = ev.get("dimensao")
+        out["aprofundar"] = ("amostrar_registros para os registros; historico_cargas para as cargas dos arquivos "
+                             "relacionados; impacto_metricas para a distribuição da dimensão afetada")
         return out
 
     def _amostrar_registros(self, incidente_id, limite):
@@ -156,11 +179,17 @@ class Ferramentas:
     def _dominio_valores(self, modelo, coluna):
         return {"codigos_e_sinonimos": dominios.DOMINIOS[(modelo, coluna)]}
 
+    def _impacto_metricas(self, dimensao):
+        mv = tools.SEMANTICA.get(self.amb)
+        if mv is None:
+            raise ValueError("camada semantica indisponivel neste ambiente")
+        return {"distribuicao": self.db.read(IMPACTO.format(dim=dimensao, mv=mv))}
+
 
 def _linhas(saida):
     if not isinstance(saida, dict) or "erro" in saida:
         return 0
-    for k in ("registros", "cargas", "codigos_e_sinonimos"):
+    for k in ("registros", "cargas", "codigos_e_sinonimos", "distribuicao"):
         v = saida.get(k)
         if isinstance(v, (list, dict)):
             return len(v)

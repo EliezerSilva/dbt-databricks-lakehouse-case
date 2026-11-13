@@ -41,6 +41,7 @@ do registro de domínios e sinônimos (`agent/dominios.py`), embrião da ontolog
 | Ferramentas em lista fechada, parâmetros validados, limite de passos e orçamento na investigação | `agent/investigate.py` | `TestInvestigacao`, `TestValidacao` |
 | Falha inesperada isolada por incidente | `investigate.investigar_todos` | `TestIsolamento` |
 | Transições de estado, resolução só com fonte avaliada, supressão e reincidência | `agent/estado.py` | `TestTransicoes`, `TestAnotacao`, `TestReincidencia` |
+| Lacuna de atribuição por limiar, fonte restrita ao ambiente com camada semântica, dimensão em lista fechada | `run.diagnosticos_cobertura`, `investigate.py` | `TestCobertura`, `TestFerramentaImpacto` |
 
 ## Investigação conduzida pelo LLM (tool calling)
 
@@ -54,6 +55,7 @@ A classificação permanece determinística e não pode ser alterada pelo LLM.
 | `amostrar_registros` | Até 5 registros afetados (consulta real à quarentena para órfãos) |
 | `historico_cargas` | Últimas 5 cargas de um arquivo no `ingestion_log` |
 | `dominio_valores` | Códigos válidos e sinônimos do domínio |
+| `impacto_metricas` | Receita líquida e pedidos por valor de uma dimensão, via `MEASURE()` (somente ambiente `original`) |
 
 Controles: lista fechada de ferramentas; parâmetros validados (extras rejeitados, `incidente_id` restrito à execução,
 limite de 1 a 5, nome de arquivo por regex, domínio por enumeração); chamada rejeitada volta ao LLM como erro;
@@ -67,6 +69,25 @@ nos incidentes com arquivo relacionado e `dominio_valores` apenas no incidente d
 ponteiros do passo anterior; 16 chamadas ao LLM, 31.212 tokens de entrada; 4/4 narrativas aprovadas na validação.
 
 O modo `--modo-llm narrativa` mantém o comportamento anterior (contexto completo, uma chamada por incidente).
+
+## Cobertura da camada semântica
+
+Fonte `cobertura_semantica` (somente ambiente `original`, cuja Silver alimenta a `dbt_gold`): mede via `MEASURE()`
+na `mv_vendas` a parcela da receita líquida sem atribuição em canal, região e segmento. Acima de 1% vira incidente
+`LACUNA_DE_ATRIBUICAO`, com o valor sem atribuição como impacto. O incidente informa o impacto, não afirma a causa;
+a causa é investigada pelo LLM com as ferramentas. Em `dev` e `cenarios` a fonte não é avaliada (sem falha e sem
+resolução de incidentes).
+
+Execução de referência em 2026-11-13 (ambiente `original`):
+
+| Dimensão | Receita sem atribuição | Parcela | Pedidos |
+|---|---|---|---|
+| Canal | R$ 527.929,23 | 15,6% | 39 |
+| Região | R$ 153.769,72 | 4,5% | 19 |
+| Segmento | R$ 684.460,10 | 20,2% | 61 |
+
+São dados que passaram por quarentena, cargas e testes dbt, sem nenhum incidente nessas fontes; só a camada
+semântica revela que não podem ser atribuídos.
 
 ## Controle de estado
 
