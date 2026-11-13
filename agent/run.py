@@ -6,7 +6,7 @@ import sys
 import time
 import uuid
 
-from agent import classify, dbt_artifacts, estado, investigate, llm as llm_mod, narrate, tools
+from agent import classify, dbt_artifacts, estado, investigate, llm as llm_mod, narrate, ontologia, tools
 from agent.db import Db
 
 DDL = [
@@ -144,7 +144,7 @@ def diagnosticos_dbt(db, amb, target_dir, avisos):
     return out
 
 
-LACUNAS = {"canal": "Sem canal", "regiao": "Sem região", "segmento": "Não informado"}
+LACUNAS = {d: a["rotulo_lacuna"] for d, a in ontologia.atribuicoes().items()}
 LIMIAR_LACUNA = 0.01
 
 

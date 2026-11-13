@@ -1,11 +1,9 @@
 import re
 import unicodedata
 
-DOMINIOS = {
-    ("dim_regiao", "regional_code"): {
-        "N": ["NORTE"], "NE": ["NORDESTE"], "SE": ["SUDESTE"], "S": ["SUL"], "CO": ["CENTRO-OESTE"],
-    },
-}
+from agent import ontologia
+
+DOMINIOS = ontologia.dominios()
 
 
 def normalizar(valor):

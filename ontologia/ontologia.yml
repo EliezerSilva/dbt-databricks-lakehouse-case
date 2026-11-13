@@ -1,0 +1,92 @@
+versao: 1
+descricao: Ontologia do domínio comercial (pedidos de venda) do lakehouse-case.
+
+camada_semantica:
+  metric_view_dimensoes: mv_vendas
+
+entidades:
+  item_pedido:
+    descricao: Item de um pedido de venda; grão da receita.
+    modelo: fato_pedidos
+    chave: [order_id, item_seq]
+    silver: silver_pedidos_itens
+  pedido:
+    descricao: Pedido de venda (cabeçalho), uma linha por pedido.
+    modelo: fct_pedidos
+    chave: order_id
+    silver: silver_pedidos_cabecalho
+    dimensoes_semanticas: [status_pedido]
+  cliente:
+    descricao: Cliente comprador (SCD1 pela versão mais recente).
+    modelo: dim_cliente
+    chave: customer_id
+    silver: silver_clientes
+    dimensoes_semanticas: [segmento]
+  produto:
+    descricao: Produto vendido (SCD1 pela versão mais recente).
+    modelo: dim_produto
+    chave: product_id
+    silver: silver_produtos
+    dimensoes_semanticas: [categoria, subcategoria]
+  vendedor:
+    descricao: Vendedor responsável pelo pedido; carrega canal e região da venda.
+    modelo: dim_vendedor
+    chave: seller_id
+    silver: silver_vendedores
+  canal:
+    descricao: Canal comercial.
+    modelo: dim_canal
+    chave: canal_id
+    silver: silver_canais
+    dimensoes_semanticas: [canal, tipo_canal]
+  regiao:
+    descricao: Região comercial.
+    modelo: dim_regiao
+    chave: regional_code
+    silver: silver_regioes
+    dimensoes_semanticas: [regiao]
+  data:
+    descricao: Calendário (pedido e promessa de entrega).
+    modelo: dim_data
+    chave: data
+    dimensoes_semanticas: [ano_mes, ano, trimestre]
+
+relacoes:
+  - {de: item_pedido, para: pedido, via: order_id, descricao: O item pertence a um pedido.}
+  - {de: item_pedido, para: produto, via: product_code, descricao: O item vende um produto.}
+  - {de: pedido, para: cliente, via: customer_code, descricao: O pedido é de um cliente.}
+  - {de: pedido, para: vendedor, via: seller_id, descricao: O pedido é atendido por um vendedor.}
+  - {de: pedido, para: data, via: order_date, descricao: O pedido tem data de emissão.}
+  - {de: vendedor, para: canal, via: canal_id, descricao: O canal da venda é o canal do vendedor.}
+  - {de: vendedor, para: regiao, via: regional_code, descricao: A região da venda é a região do vendedor.}
+
+atribuicao:
+  canal:
+    caminho: [item_pedido, pedido, vendedor, canal]
+    nome: canal
+    genero: m
+    rotulo_lacuna: Sem canal
+  regiao:
+    caminho: [item_pedido, pedido, vendedor, regiao]
+    nome: região
+    genero: f
+    rotulo_lacuna: Sem região
+  segmento:
+    caminho: [item_pedido, pedido, cliente]
+    atributo: segmento
+    nome: segmento de cliente
+    genero: m
+    rotulo_lacuna: Não informado
+
+dominios:
+  - modelo: dim_regiao
+    coluna: regional_code
+    valores: {"N": [NORTE], "NE": [NORDESTE], "SE": [SUDESTE], "S": [SUL], "CO": [CENTRO-OESTE]}
+
+metricas:
+  receita_liquida: {metric_view: mv_vendas, grao: item_pedido, definicao: Receita líquida dos itens não cancelados.}
+  receita_bruta: {metric_view: mv_vendas, grao: item_pedido, definicao: Valor bruto dos itens não cancelados.}
+  pedidos: {metric_view: mv_vendas, grao: item_pedido, definicao: Pedidos distintos com itens não cancelados.}
+  ticket_medio: {metric_view: mv_pedidos, grao: pedido, definicao: Valor líquido médio dos pedidos com status diferente de CANCELADO.}
+  descontos: {metric_view: mv_pedidos, grao: pedido, definicao: Desconto dos pedidos com status diferente de CANCELADO, contado uma vez por pedido.}
+  pedidos_com_cancelamento: {metric_view: mv_pedidos, grao: pedido, definicao: Pedidos com ao menos um item cancelado (definição herdada do PySpark).}
