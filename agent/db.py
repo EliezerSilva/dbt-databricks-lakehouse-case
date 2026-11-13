@@ -58,7 +58,7 @@ def _conv(v, typ):
 
 class Db:
     def __init__(self, profile, warehouse_id, timeout_s=300):
-        self.w = WorkspaceClient(profile=profile)
+        self.w = WorkspaceClient(profile=profile) if profile else WorkspaceClient()
         self.warehouse_id = warehouse_id
         self.timeout_s = timeout_s
         self.calls = 0

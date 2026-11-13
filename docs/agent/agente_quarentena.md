@@ -118,6 +118,27 @@ Execução de referência em 2026-11-12 (ambiente `cenarios`):
 | R3 | Carga de `vendedores.csv` corrigida | G4 `RESOLVIDO` |
 | R4 | Layout divergente volta; execução com LLM | G4 `REABERTO` (1 reabertura, 3 detecções) |
 
+## Execução agendada
+
+O agente roda como job serverless do Databricks, definido no bundle operacional `ops/agente/` (separado do bundle
+de desenvolvimento, cujo modo pausa agendamentos a cada deploy). O bundle sincroniza apenas `agent/`, `jobs/` e
+`ontologia/`.
+
+| Item | Valor |
+|---|---|
+| Job | `agente-quarentena` |
+| Agenda | Segunda a sexta, 07:00 (America/Sao_Paulo) |
+| Parâmetros | Ambiente `original`, com gravação e investigação por LLM |
+| Autenticação | Nativa do runtime (sem perfil de CLI); executa com a identidade do dono do job |
+| Custo por execução | Cerca de 17 chamadas ao LLM e consultas ao SQL Warehouse; cai à medida que incidentes são reconhecidos |
+| Pausar | `pause_status: PAUSED` em `ops/agente/resources/agente_quarentena.yml` e `databricks bundle deploy -t ops` em `ops/agente` |
+
+Primeira execução pelo bundle operacional em 2026-11-13: `TERMINATED SUCCESS`, 5 incidentes atualizados no estado.
+
+Limitação do Free Edition: service principal com segredo OAuth depende de recursos de conta indisponíveis na
+edição; por isso o CI do GitHub não executa contra o Databricks, e a execução de integração (dbt build e agente)
+é feita localmente.
+
 ## Persistência
 
 | Tabela | Conteúdo |
