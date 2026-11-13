@@ -1,0 +1,18 @@
+bundle:
+  name: agente-quarentena-ops
+
+include:
+  - resources/*.yml
+
+sync:
+  paths:
+    - ../../agent
+    - ../../jobs
+    - ../../ontologia
+
+workspace:
+  profile: dbt-lakehouse-free
+
+targets:
+  ops:
+    default: true
