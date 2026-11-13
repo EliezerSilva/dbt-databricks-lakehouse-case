@@ -30,3 +30,18 @@ def llm_indisponivel(system, user):
 
 def llm_resposta_invalida(system, user):
     return "resposta sem json", 0, 0
+
+
+def databricks_chat(w, endpoint=ENDPOINT, max_tokens=500):
+    url = f"/serving-endpoints/{endpoint}/invocations"
+
+    def chat(messages, tools=None):
+        body = {"messages": messages, "max_tokens": max_tokens, "temperature": 0.0}
+        if tools:
+            body["tools"] = tools
+        try:
+            r = w.api_client.do("POST", url, body=body)
+        except Exception as e:  # noqa: BLE001 - qualquer falha do endpoint vira fallback
+            raise LlmIndisponivel(str(e)[:300]) from e
+        return r["choices"][0]["message"], r.get("usage") or {}
+    return chat

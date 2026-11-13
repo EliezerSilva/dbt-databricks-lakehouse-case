@@ -71,12 +71,16 @@ class TestSqlDoAgente(unittest.TestCase):
         from agent import run, tools
         for ddl in run.DDL:
             check_write(ddl)
-        for ins in (run.INSERT_DIAG, run.INSERT_EXEC, run.INSERT_NARR):
+        for ins in (run.INSERT_DIAG, run.INSERT_EXEC, run.INSERT_NARR, run.INSERT_TOOL):
             check_write(ins)
         for amb in tools.AMBIENTES:
             for t in tools.TEMPLATES_AMBIENTE:
                 check_read(tools.sql(t, amb))
         check_read(tools.VALORES_FORA.format(rel="`workspace`.`dbt_gold`.`dim_regiao`", col="regional_code"))
+        from agent import investigate
+        for amb in tools.AMBIENTES:
+            for t in (investigate.AMOSTRA_ORFAOS, investigate.HISTORICO):
+                check_read(tools.sql(t, amb))
 
     def test_ambiente_fora_da_lista(self):
         from agent import tools

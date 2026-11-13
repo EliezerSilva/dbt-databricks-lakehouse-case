@@ -5,7 +5,7 @@ import json
 import sys
 import uuid
 
-from agent import classify, dbt_artifacts, llm as llm_mod, narrate, tools
+from agent import classify, dbt_artifacts, investigate, llm as llm_mod, narrate, tools
 from agent.db import Db
 
 DDL = [
@@ -22,6 +22,10 @@ DDL = [
         agent_run_id STRING, incidente_id STRING, llm_status STRING, modelo STRING, explicacao STRING,
         perguntas STRING, erro STRING, tokens_in BIGINT, tokens_out BIGINT, criado_em TIMESTAMP
     ) COMMENT 'Explicacao por incidente gerada por LLM e validada contra a evidencia'""",
+    """CREATE TABLE IF NOT EXISTS workspace.agent.chamadas_ferramentas (
+        agent_run_id STRING, incidente_id STRING, passo INT, ferramenta STRING, parametros STRING,
+        status STRING, linhas INT, duracao_ms BIGINT, criado_em TIMESTAMP
+    ) COMMENT 'Rastro das chamadas de ferramenta conduzidas pelo LLM'""",
 ]
 
 INSERT_DIAG = """INSERT INTO workspace.agent.diagnosticos VALUES (
@@ -35,6 +39,10 @@ INSERT_NARR = """INSERT INTO workspace.agent.narrativas VALUES (
 INSERT_EXEC = """INSERT INTO workspace.agent.execucoes VALUES (
     :run_id, :iniciado_em, current_timestamp(), :modo, :status, :incidentes, :sql_calls, :llm_calls, :erro,
     :ambiente)"""
+
+
+INSERT_TOOL = """INSERT INTO workspace.agent.chamadas_ferramentas VALUES (
+    :run_id, :incidente_id, :passo, :ferramenta, :parametros, :status, :linhas, :duracao_ms, current_timestamp())"""
 
 
 def _id(*parts):
@@ -142,7 +150,7 @@ def _para_tela(d):
     return {**d, "evidencia": ev}
 
 
-def gravar(db, run_id, inicio, amb, modo, status, erro, diags, narrs, modelo, llm_calls):
+def gravar(db, run_id, inicio, amb, modo, status, erro, diags, narrs, modelo, llm_calls, trace=()):
     for ddl in DDL:
         db.write(ddl)
     for d in diags:
@@ -161,6 +169,12 @@ def gravar(db, run_id, inicio, amb, modo, status, erro, diags, narrs, modelo, ll
             "perguntas": json.dumps(n["perguntas"], ensure_ascii=False), "erro": n["erro"],
             "tokens_in": (n["tokens_in"], "BIGINT"), "tokens_out": (n["tokens_out"], "BIGINT"),
         })
+    for t in trace:
+        db.write(INSERT_TOOL, {
+            "run_id": run_id, "incidente_id": t["incidente_id"], "passo": (t["passo"], "INT"),
+            "ferramenta": t["ferramenta"], "parametros": t["parametros"], "status": t["status"],
+            "linhas": (t["linhas"], "INT"), "duracao_ms": (t["duracao_ms"], "BIGINT"),
+        })
     db.write(INSERT_EXEC, {
         "run_id": run_id, "iniciado_em": (inicio, "TIMESTAMP"), "modo": modo, "status": status,
         "incidentes": (len(diags), "INT"), "sql_calls": (db.calls, "INT"), "llm_calls": (llm_calls, "INT"),
@@ -177,7 +191,8 @@ def main(argv=None):
     ap.add_argument("--endpoint", default=llm_mod.ENDPOINT)
     ap.add_argument("--sem-llm", action="store_true")
     ap.add_argument("--simular-falha", choices=["INDISPONIVEL", "RESPOSTA_INVALIDA"])
-    ap.add_argument("--max-llm-calls", type=int, default=4)
+    ap.add_argument("--max-llm-calls", type=int, default=None, help="padrao: (passos + 1) x incidentes em investigacao, 4 em narrativa")
+    ap.add_argument("--modo-llm", choices=["investigacao", "narrativa"], default="investigacao")
     ap.add_argument("--gravar", action="store_true", help="grava em workspace.agent; sem a flag apenas imprime")
     a = ap.parse_args(argv)
     db = Db(a.profile, a.warehouse)
@@ -189,9 +204,15 @@ def main(argv=None):
         llm, modo = llm_mod.llm_resposta_invalida, "simulado_resposta_invalida"
     else:
         llm, modo = llm_mod.databricks_llm(db.w, a.endpoint), "llm"
+    chat = None
+    if not a.sem_llm and a.modo_llm == "investigacao":
+        chat = {"INDISPONIVEL": investigate.chat_indisponivel,
+                "RESPOSTA_INVALIDA": investigate.chat_resposta_invalida}.get(a.simular_falha) \
+            or llm_mod.databricks_chat(db.w, a.endpoint)
+        modo = "investigacao" if modo == "llm" else modo + "_investigacao"
     run_id = uuid.uuid4().hex
     inicio = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-    avisos, diags, narrs, calls, tin, tout = [], [], [], 0, 0, 0
+    avisos, diags, narrs, calls, tin, tout, trace = [], [], [], 0, 0, 0, []
     fontes = (("tabelas_invalidas", lambda: diagnosticos_invalidos(db, a.ambiente)),
               ("tabelas_orfas", lambda: diagnosticos_orfaos(db, a.ambiente)),
               ("ingestion_log", lambda: diagnosticos_layout(db, a.ambiente)),
@@ -204,7 +225,12 @@ def main(argv=None):
             falhas_fonte += 1
             avisos.append(f"{nome}: {str(e)[:300]}")
     try:
-        narrs, calls, tin, tout = narrate.narrar(diags, llm, a.max_llm_calls)
+        if chat:
+            narrs, calls, tin, tout, trace = investigate.investigar_todos(
+                diags, chat, investigate.Ferramentas(db, a.ambiente, diags),
+                a.max_llm_calls if a.max_llm_calls is not None else (investigate.MAX_PASSOS + 1) * max(len(diags), 1))
+        else:
+            narrs, calls, tin, tout = narrate.narrar(diags, llm, a.max_llm_calls if a.max_llm_calls is not None else 4)
     except Exception as e:  # noqa: BLE001
         falhas_fonte += 1
         avisos.append(f"narrativa: {str(e)[:300]}")
@@ -212,11 +238,11 @@ def main(argv=None):
     erro = "; ".join(avisos) or None
     print(json.dumps({"agent_run_id": run_id, "ambiente": a.ambiente, "modo": modo, "status": status,
                       "avisos": avisos, "sql_calls": db.calls, "llm_calls": calls, "tokens_in": tin,
-                      "tokens_out": tout, "diagnosticos": [_para_tela(d) for d in diags], "narrativas": narrs},
+                      "tokens_out": tout, "diagnosticos": [_para_tela(d) for d in diags], "narrativas": narrs, "chamadas_ferramentas": trace},
                      ensure_ascii=False, indent=2, default=str))
     if a.gravar:
         gravar(db, run_id, inicio, a.ambiente, modo, status, erro, diags, narrs,
-               a.endpoint if llm else None, calls)
+               a.endpoint if (llm or chat) else None, calls, trace)
         print(f"gravado: agent_run_id={run_id}", file=sys.stderr)
     return 0 if status != "ERRO" else 1
 
