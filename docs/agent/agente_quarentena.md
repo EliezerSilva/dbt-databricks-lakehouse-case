@@ -40,6 +40,7 @@ do registro de domínios e sinônimos (`agent/dominios.py`), embrião da ontolog
 | Fallback para endpoint indisponível, resposta inválida e orçamento esgotado | `narrate.narrar` | `TestNarrar` |
 | Ferramentas em lista fechada, parâmetros validados, limite de passos e orçamento na investigação | `agent/investigate.py` | `TestInvestigacao`, `TestValidacao` |
 | Falha inesperada isolada por incidente | `investigate.investigar_todos` | `TestIsolamento` |
+| Transições de estado, resolução só com fonte avaliada, supressão e reincidência | `agent/estado.py` | `TestTransicoes`, `TestAnotacao`, `TestReincidencia` |
 
 ## Investigação conduzida pelo LLM (tool calling)
 
@@ -67,6 +68,35 @@ ponteiros do passo anterior; 16 chamadas ao LLM, 31.212 tokens de entrada; 4/4 n
 
 O modo `--modo-llm narrativa` mantém o comportamento anterior (contexto completo, uma chamada por incidente).
 
+## Controle de estado
+
+O ciclo de vida de cada incidente é um log de eventos append-only em `workspace.agent.incidentes_eventos`;
+o estado atual é o último evento. Mantém a guarda de escrita (somente `INSERT`) e o histórico completo.
+
+| Situação na execução | Evento | Estado |
+|---|---|---|
+| Incidente inédito | `NOVO` | `ABERTO` |
+| Incidente aberto detectado de novo | `DETECTADO` | `ABERTO` |
+| Incidente reconhecido detectado de novo | `DETECTADO` (nota do reconhecimento propagada) | `RECONHECIDO` |
+| Incidente resolvido detectado de novo | `REABERTO` | `ABERTO` |
+| Incidente aberto ou reconhecido não detectado, com a fonte dele avaliada | `RESOLVIDO` | `RESOLVIDO` |
+| Reconhecimento humano (`python -m agent.estado reconhecer`) | `RECONHECIDO` (ator humano, com nota) | `RECONHECIDO` |
+
+O estado altera o comportamento: incidente reconhecido não é reinvestigado (sem chamada ao LLM; narrativa
+`SUPRIMIDO_RECONHECIDO` com a nota); incidente reaberto chega ao LLM marcado como reincidente e a narrativa recebe,
+de forma determinística, a indicação de reincidência. Resolução só ocorre quando a fonte do incidente foi avaliada
+na execução (evita "resolver" falhas de dbt quando os artefatos não foram lidos); sem estado confiável, nenhum evento é gerado.
+
+Execução de referência em 2026-11-12 (ambiente `cenarios`):
+
+| Execução | Ação | Resultado |
+|---|---|---|
+| R1 | Primeira execução | 4 incidentes `NOVO` |
+| — | Reconhecimento humano de G1 | `RECONHECIDO` com nota |
+| R2 | Execução com LLM | G1 suprimido; 12 chamadas ao LLM (16 com os 4 incidentes) |
+| R3 | Carga de `vendedores.csv` corrigida | G4 `RESOLVIDO` |
+| R4 | Layout divergente volta; execução com LLM | G4 `REABERTO` (1 reabertura, 3 detecções) |
+
 ## Persistência
 
 | Tabela | Conteúdo |
@@ -75,6 +105,7 @@ O modo `--modo-llm narrativa` mantém o comportamento anterior (contexto complet
 | `workspace.agent.diagnosticos` | Um registro por incidente: classificação, ocorrências, impacto, decisão humana, resumo, proposta e evidência (JSON) |
 | `workspace.agent.narrativas` | Explicação do LLM por incidente, status de validação, modelo e tokens |
 | `workspace.agent.chamadas_ferramentas` | Rastro das chamadas de ferramenta: passo, ferramenta, parâmetros, status, linhas e duração |
+| `workspace.agent.incidentes_eventos` | Ciclo de vida dos incidentes (append-only): evento, estado resultante, ator e nota |
 
 ## Execução
 
