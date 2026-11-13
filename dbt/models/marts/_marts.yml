@@ -359,3 +359,9 @@ models:
 
   - name: itens_sem_cabecalho
     description: Itens cujo order_id nao existe no cabecalho (orfaos). View idempotente.
+
+  - name: fct_pedidos
+    description: Pedidos (1 linha por pedido), agregados da fato_pedidos. Fonte da Metric View mv_pedidos.
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
