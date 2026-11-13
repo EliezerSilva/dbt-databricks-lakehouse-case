@@ -3,9 +3,10 @@ import datetime
 import hashlib
 import json
 import sys
+import time
 import uuid
 
-from agent import classify, dbt_artifacts, investigate, llm as llm_mod, narrate, tools
+from agent import classify, dbt_artifacts, estado, investigate, llm as llm_mod, narrate, tools
 from agent.db import Db
 
 DDL = [
@@ -150,7 +151,7 @@ def _para_tela(d):
     return {**d, "evidencia": ev}
 
 
-def gravar(db, run_id, inicio, amb, modo, status, erro, diags, narrs, modelo, llm_calls, trace=()):
+def gravar(db, run_id, inicio, amb, modo, status, erro, diags, narrs, modelo, llm_calls, trace=(), eventos=()):
     for ddl in DDL:
         db.write(ddl)
     for d in diags:
@@ -175,6 +176,8 @@ def gravar(db, run_id, inicio, amb, modo, status, erro, diags, narrs, modelo, ll
             "ferramenta": t["ferramenta"], "parametros": t["parametros"], "status": t["status"],
             "linhas": (t["linhas"], "INT"), "duracao_ms": (t["duracao_ms"], "BIGINT"),
         })
+    if eventos:
+        estado.gravar_eventos(db, amb, eventos, run_id)
     db.write(INSERT_EXEC, {
         "run_id": run_id, "iniciado_em": (inicio, "TIMESTAMP"), "modo": modo, "status": status,
         "incidentes": (len(diags), "INT"), "sql_calls": (db.calls, "INT"), "llm_calls": (llm_calls, "INT"),
@@ -217,32 +220,51 @@ def main(argv=None):
               ("tabelas_orfas", lambda: diagnosticos_orfaos(db, a.ambiente)),
               ("ingestion_log", lambda: diagnosticos_layout(db, a.ambiente)),
               ("dbt", lambda: diagnosticos_dbt(db, a.ambiente, a.dbt_target_dir, avisos)))
-    falhas_fonte = 0
+    falhas_fonte, fontes_falhas = 0, set()
     for nome, fn in fontes:
         try:
             diags += fn()
         except Exception as e:  # noqa: BLE001 - fonte isolada, registrada em avisos
             falhas_fonte += 1
             avisos.append(f"{nome}: {str(e)[:300]}")
+            fontes_falhas.add(nome)
+    fontes_avaliadas = {"tabelas_invalidas", "tabelas_orfas", "ingestion_log"} - fontes_falhas
+    if a.dbt_target_dir and "dbt" not in fontes_falhas and not any(
+            v.startswith(("dbt: artefatos", "dbt: ambiente")) for v in avisos):
+        fontes_avaliadas.add("dbt")
+    estado_atual, eventos = {}, []
+    try:
+        estado_atual = estado.carregar(db, a.ambiente)
+        eventos = estado.transicoes(estado_atual, diags, fontes_avaliadas)
+    except Exception as e:  # noqa: BLE001 - sem estado confiavel, nenhum evento e gerado
+        if "TABLE_OR_VIEW_NOT_FOUND" in str(e):
+            eventos = estado.transicoes({}, diags, fontes_avaliadas)
+        else:
+            avisos.append(f"estado: {str(e)[:200]}")
+    estado.anotar(diags, estado_atual, eventos)
+    suprimidos = [d for d in diags if d["estado"]["status"] == estado.RECONHECIDO]
+    ativos = [d for d in diags if d["estado"]["status"] != estado.RECONHECIDO]
     try:
         if chat:
             narrs, calls, tin, tout, trace = investigate.investigar_todos(
-                diags, chat, investigate.Ferramentas(db, a.ambiente, diags),
-                a.max_llm_calls if a.max_llm_calls is not None else (investigate.MAX_PASSOS + 1) * max(len(diags), 1))
+                ativos, chat, investigate.Ferramentas(db, a.ambiente, diags),
+                a.max_llm_calls if a.max_llm_calls is not None else (investigate.MAX_PASSOS + 1) * max(len(ativos), 1))
         else:
-            narrs, calls, tin, tout = narrate.narrar(diags, llm, a.max_llm_calls if a.max_llm_calls is not None else 4)
+            narrs, calls, tin, tout = narrate.narrar(ativos, llm, a.max_llm_calls if a.max_llm_calls is not None else 4)
     except Exception as e:  # noqa: BLE001
         falhas_fonte += 1
         avisos.append(f"narrativa: {str(e)[:300]}")
+    estado.marcar_reincidencia(narrs, diags)
+    narrs += [estado.narrativa_suprimida(d) for d in suprimidos]
     status = "OK" if not falhas_fonte else ("ERRO" if not diags else "PARCIAL")
     erro = "; ".join(avisos) or None
     print(json.dumps({"agent_run_id": run_id, "ambiente": a.ambiente, "modo": modo, "status": status,
                       "avisos": avisos, "sql_calls": db.calls, "llm_calls": calls, "tokens_in": tin,
-                      "tokens_out": tout, "diagnosticos": [_para_tela(d) for d in diags], "narrativas": narrs, "chamadas_ferramentas": trace},
+                      "tokens_out": tout, "diagnosticos": [_para_tela(d) for d in diags], "narrativas": narrs, "chamadas_ferramentas": trace, "transicoes": eventos},
                      ensure_ascii=False, indent=2, default=str))
     if a.gravar:
         gravar(db, run_id, inicio, a.ambiente, modo, status, erro, diags, narrs,
-               a.endpoint if (llm or chat) else None, calls, trace)
+               a.endpoint if (llm or chat) else None, calls, trace, eventos)
         print(f"gravado: agent_run_id={run_id}", file=sys.stderr)
     return 0 if status != "ERRO" else 1
 

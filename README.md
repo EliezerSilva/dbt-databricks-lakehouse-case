@@ -113,7 +113,7 @@ dbt docs generate
 ## Agente de quarentena
 
 Agente que diagnostica incidentes de qualidade (quarentena da Silver, cargas em NOK e falhas de testes dbt),
-classifica de forma determinística, investiga via LLM com chamadas de ferramentas (somente leitura, parâmetros validados, rastro persistido), explica com validação contra a evidência e propõe correção
+classifica de forma determinística, investiga via LLM com chamadas de ferramentas (somente leitura, parâmetros validados, rastro persistido), explica com validação contra a evidência, mantém o ciclo de vida dos incidentes entre execuções (aberto, reconhecido, resolvido, reincidente) e propõe correção
 por PR. Não altera camadas de dados. Benchmark de 5 cenários: 5/5.
 Detalhes: [docs/agent/agente_quarentena.md](docs/agent/agente_quarentena.md).
 

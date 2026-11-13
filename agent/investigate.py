@@ -11,7 +11,7 @@ SYSTEM = (
     "Você investiga um incidente de qualidade de dados seguindo o procedimento: 1) detalhar_incidente; "
     "2) verificar na fonte com amostrar_registros; 3) se houver arquivos relacionados, historico_cargas; "
     "4) se houver domínio afetado, dominio_valores. Pule os passos que não se aplicam; no máximo 4 chamadas. "
-    "Use o incidente_id recebido. "
+    "Use o incidente_id recebido. Se o alerta indicar reincidência, mencione-a na explicação. "
     "A classificação recebida é definitiva e não pode ser alterada. O contexto inicial é só o alerta: "
     "números, registros e histórico precisam ser obtidos com as ferramentas antes de serem citados. " + narrate.SYSTEM
 )
@@ -183,7 +183,12 @@ def _arquivos(obj):
 
 def alerta(diag):
     campos = ("incidente_id", "classificacao", "fonte", "source_table", "resumo", "proposta")
-    return {k: diag[k] for k in campos}
+    out = {k: diag[k] for k in campos}
+    est = diag.get("estado") or {}
+    if est.get("reincidente"):
+        out["historico"] = {"reincidente": True, "reaberturas": est.get("reaberturas"),
+                            "deteccoes_anteriores": est.get("deteccoes_anteriores")}
+    return out
 
 
 def investigar(diag, chat, ferramentas, orcamento, max_passos=MAX_PASSOS):
