@@ -116,3 +116,22 @@ def layout_nok(db, amb):
 def valores_fora(db, relacao, coluna, valores):
     import json
     return db.read(VALORES_FORA.format(rel=relacao, col=coluna), {"valores": json.dumps([str(v) for v in valores])})
+
+
+SEMANTICA = {"original": "workspace.dbt_gold.mv_vendas"}
+
+COBERTURA = """
+SELECT 'canal' AS dimensao, canal AS valor, MEASURE(receita_liquida) AS receita, MEASURE(pedidos) AS pedidos
+FROM {mv} GROUP BY canal
+UNION ALL
+SELECT 'regiao' AS dimensao, regiao AS valor, MEASURE(receita_liquida) AS receita, MEASURE(pedidos) AS pedidos
+FROM {mv} GROUP BY regiao
+UNION ALL
+SELECT 'segmento' AS dimensao, segmento AS valor, MEASURE(receita_liquida) AS receita, MEASURE(pedidos) AS pedidos
+FROM {mv} GROUP BY segmento
+"""
+
+
+def cobertura(db, amb):
+    mv = SEMANTICA.get(amb)
+    return None if mv is None else db.read(COBERTURA.format(mv=mv))

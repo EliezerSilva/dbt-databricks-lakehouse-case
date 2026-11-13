@@ -144,6 +144,36 @@ def diagnosticos_dbt(db, amb, target_dir, avisos):
     return out
 
 
+LACUNAS = {"canal": "Sem canal", "regiao": "Sem região", "segmento": "Não informado"}
+LIMIAR_LACUNA = 0.01
+
+
+def diagnosticos_cobertura(db, amb, limiar=LIMIAR_LACUNA):
+    rows = tools.cobertura(db, amb)
+    if rows is None:
+        return []
+    out = []
+    for dim, rotulo in LACUNAS.items():
+        linhas = [r for r in rows if r["dimensao"] == dim]
+        total = sum(float(r["receita"] or 0) for r in linhas)
+        lac = next((r for r in linhas if r["valor"] == rotulo), None)
+        if lac is None or total <= 0:
+            continue
+        valor = round(float(lac["receita"] or 0), 2)
+        parcela = valor / total
+        if parcela <= limiar:
+            continue
+        pct = round(parcela * 100, 1)
+        cls, resumo, humano = classify.classify_lacuna(dim, pct)
+        pedidos = int(lac["pedidos"] or 0)
+        out.append(_diag(_id("cobertura_semantica", amb, dim), "cobertura_semantica", "mv_vendas", cls, resumo,
+                         humano, {"dimensao": dim, "rotulo_lacuna": rotulo, "receita_sem_atribuicao": valor,
+                                 "receita_total": round(total, 2), "parcela_pct": pct,
+                                 "pedidos_sem_atribuicao": pedidos, "limiar_pct": limiar * 100},
+                         pedidos=pedidos, impacto=valor))
+    return out
+
+
 def _para_tela(d):
     ev = dict(d["evidencia"])
     if "chaves" in ev:
@@ -219,7 +249,8 @@ def main(argv=None):
     fontes = (("tabelas_invalidas", lambda: diagnosticos_invalidos(db, a.ambiente)),
               ("tabelas_orfas", lambda: diagnosticos_orfaos(db, a.ambiente)),
               ("ingestion_log", lambda: diagnosticos_layout(db, a.ambiente)),
-              ("dbt", lambda: diagnosticos_dbt(db, a.ambiente, a.dbt_target_dir, avisos)))
+              ("dbt", lambda: diagnosticos_dbt(db, a.ambiente, a.dbt_target_dir, avisos)),
+              ("cobertura_semantica", lambda: diagnosticos_cobertura(db, a.ambiente)))
     falhas_fonte, fontes_falhas = 0, set()
     for nome, fn in fontes:
         try:
@@ -232,6 +263,8 @@ def main(argv=None):
     if a.dbt_target_dir and "dbt" not in fontes_falhas and not any(
             v.startswith(("dbt: artefatos", "dbt: ambiente")) for v in avisos):
         fontes_avaliadas.add("dbt")
+    if a.ambiente in tools.SEMANTICA and "cobertura_semantica" not in fontes_falhas:
+        fontes_avaliadas.add("cobertura_semantica")
     estado_atual, eventos = {}, []
     try:
         estado_atual = estado.carregar(db, a.ambiente)
