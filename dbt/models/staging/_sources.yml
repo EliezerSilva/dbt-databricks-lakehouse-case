@@ -102,3 +102,8 @@ sources:
       - name: dim_produto
       - name: dim_data
       - name: fato_pedidos
+      - name: metricas_por_periodo
+      - name: metricas_por_regiao
+      - name: metricas_por_canal
+      - name: metricas_por_categoria
+      - name: metricas_operacionais
