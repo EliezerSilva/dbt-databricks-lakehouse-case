@@ -1,0 +1,3 @@
+dbt-core==1.12.5
+dbt-databricks==1.12.7
+databricks-sdk==0.117.0

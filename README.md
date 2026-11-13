@@ -117,6 +117,16 @@ classifica de forma determinística, explica via LLM com validação contra a ev
 por PR. Não altera camadas de dados. Benchmark de 5 cenários: 5/5.
 Detalhes: [docs/agent/agente_quarentena.md](docs/agent/agente_quarentena.md).
 
+## Integração contínua
+
+Cada PR executa no GitHub Actions (`.github/workflows/ci.yml`):
+
+- testes unitários do agente: guardas de SQL, classificação, validação das respostas do LLM e fallbacks;
+- `dbt parse` com contagem mínima de testes dbt (falha se testes forem removidos).
+
+A branch `main` é protegida: merge somente via PR com os dois checks verdes, sem exceção para administradores.
+A execução contra o Databricks (build, reconciliação e benchmark do agente) ainda é manual.
+
 ## Roadmap
 
 | Fase | Entrega | Status |
