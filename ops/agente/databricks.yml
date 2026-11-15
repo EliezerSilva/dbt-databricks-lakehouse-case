@@ -13,6 +13,10 @@ sync:
 workspace:
   profile: dbt-lakehouse-free
 
+permissions:
+  - level: CAN_MANAGE
+    user_name: rodrigues.eli@gmail.com
+
 targets:
   ops:
     default: true

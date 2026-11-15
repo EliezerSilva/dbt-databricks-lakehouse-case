@@ -4,6 +4,18 @@ resources:
       name: agente-quarentena
       max_concurrent_runs: 1
 
+      email_notifications:
+        on_failure:
+          - rodrigues.eli@gmail.com
+        on_duration_warning_threshold_exceeded:
+          - rodrigues.eli@gmail.com
+
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 1800
+
       schedule:
         quartz_cron_expression: "0 0 7 ? * MON-FRI"
         timezone_id: America/Sao_Paulo
