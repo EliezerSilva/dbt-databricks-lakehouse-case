@@ -126,7 +126,17 @@ Cada PR executa no GitHub Actions (`.github/workflows/ci.yml`):
 - validação da ontologia contra o manifest do dbt.
 
 A branch `main` é protegida: merge somente via PR com os dois checks verdes, sem exceção para administradores.
-A execução contra o Databricks (build, reconciliação e benchmark do agente) ainda é manual.
+A execução contra o Databricks é feita localmente por `scripts/integracao.sh` (testes, `dbt build` com reconciliação, ontologia contra o manifest e agente); o Free Edition não oferece credencial de serviço para o CI.
+
+## Trabalho futuro
+
+- Silver `silver_regioes`: desempate não determinístico para o código `S` (duas linhas fora de SP).
+- `validate_csv_layout`: valida separador e quantidade de colunas, mas não detecta coluna renomeada.
+- Job `enterprise-lakehouse-pipeline` fora do bundle, apontando para os schemas originais.
+- Narrativas do LLM: imprecisões pontuais de redação (formato decimal, "perda de dados" para carga bloqueada).
+- Execução do agente com service principal: depende da atribuição do papel `servicePrincipal.user` (interface).
+- Lacuna de segmento: a causa listada cobre clientes sem segmento; pedidos de cliente inexistente no cadastro
+  (placeholder `C9999`) não são listados.
 
 ## Roadmap
 
