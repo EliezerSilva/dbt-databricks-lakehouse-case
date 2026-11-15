@@ -135,6 +135,16 @@ de desenvolvimento, cujo modo pausa agendamentos a cada deploy). O bundle sincro
 
 Primeira execução pelo bundle operacional em 2026-11-13: `TERMINATED SUCCESS`, 5 incidentes atualizados no estado.
 
+Monitoramento: o job falha quando o agente termina com status diferente de `OK` (o ponto de entrada lê o status),
+com e-mail em falha e em execução acima de 30 minutos. Views em `workspace.agent`: `vw_estado_incidentes` (estado
+atual de cada incidente) e `vw_saude_execucoes` (eventos, chamadas de ferramenta e narrativas por execução);
+definições versionadas em `ops/agente/`.
+
+Identidade: o service principal `agente-quarentena-sp` foi criado com privilégio mínimo (concessões em
+`ops/agente/permissoes_sp.sql`: leitura em `silver`, `bronze`, `control` e `dbt_gold`; escrita apenas em `agent`; uso
+do SQL Warehouse). A vinculação ao job (`run_as`) exige o papel `servicePrincipal.user`, não atribuível pela CLI no
+Free Edition (API de conta indisponível); o job executa com a identidade do dono até essa atribuição.
+
 Limitação do Free Edition: service principal com segredo OAuth depende de recursos de conta indisponíveis na
 edição; por isso o CI do GitHub não executa contra o Databricks, e a execução de integração (dbt build e agente)
 é feita localmente.
