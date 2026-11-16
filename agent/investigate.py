@@ -11,7 +11,7 @@ SYSTEM = (
     "Você investiga um incidente de qualidade de dados seguindo o procedimento: 1) detalhar_incidente; "
     "2) verificar na fonte com amostrar_registros; 3) se houver arquivos relacionados, historico_cargas; "
     "4) se houver domínio afetado, dominio_valores; 5) se houver dimensão afetada, impacto_metricas; "
-    "6) em incidentes de órfãos ou de regiões inválidas, estado_quarentena. "
+    "Se o detalhe trouxer quarentena, cite o status dos registros nela. "
     "Pule os passos que não se aplicam; no máximo 4 chamadas. "
     "Use o incidente_id recebido. Se o alerta indicar reincidência, mencione-a na explicação. "
     "A classificação recebida é definitiva e não pode ser alterada. O contexto inicial é só o alerta: "
@@ -222,13 +222,27 @@ class Ferramentas:
         out["arquivos_relacionados"] = sorted(_arquivos(ev))
         if ev.get("teste") == "accepted_values" and ev.get("modelo") and ev.get("coluna"):
             out["dominio_afetado"] = {"modelo": ev["modelo"], "coluna": ev["coluna"]}
+        if self._tem_quarentena(d):
+            try:
+                q = self._estado_quarentena(incidente_id)
+                out["quarentena"] = {k: q[k] for k in ("entidade", "registros", "chaves_fora_da_quarentena")}
+            except Exception:  # noqa: BLE001 - detalhe segue sem a quarentena
+                out["quarentena"] = {"erro": "falha ao ler a quarentena"}
         if d["fonte"] == "cobertura_semantica":
             out["dimensao_afetada"] = ev.get("dimensao")
             out["cadeia_de_atribuicao"] = ontologia.cadeia(ev.get("dimensao"))
         out["aprofundar"] = ("amostrar_registros para os registros; historico_cargas para as cargas dos arquivos "
                              "relacionados; impacto_metricas para a distribuição da dimensão afetada; "
-                             "estado_quarentena para o ciclo de vida na quarentena")
+                             "o estado na quarentena já vem em quarentena quando aplicável")
         return out
+
+    def _tem_quarentena(self, d):
+        if self.amb not in QUARENTENA:
+            return False
+        try:
+            return bool(_alvo_quarentena(d)[1])
+        except ValueError:
+            return False
 
     def _amostrar_registros(self, incidente_id, limite):
         d = self.diags[incidente_id]
