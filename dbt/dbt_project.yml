@@ -19,6 +19,9 @@ models:
       +materialized: table
     semantic:
       +schema: gold
+    quarentena:
+      +schema: quarentena
+      +materialized: view
 
 seeds:
   lakehouse_case:

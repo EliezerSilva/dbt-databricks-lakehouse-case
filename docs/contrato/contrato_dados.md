@@ -31,11 +31,23 @@ só passa com exatamente 2 violações (`tipo_divergente` e `coluna_ausente`).
 | SLA de carga | Declarado, não verificado: as fontes estão estáticas desde 2026-05 e `freshness` falharia sempre |
 | Quarentena do produtor | `silver.tabelas_orfas` grava 80 itens em 160 linhas e `silver.tabelas_invalidas` grava 1 registro em 3, por append a cada execução. Tratado na fase F2. |
 
+## Quarentena do consumidor (F2)
+
+`dbt_quarentena.quarentena_registros` é uma view com uma linha por (entidade, regra, chave):
+
+| Origem | Regra | Registros |
+|---|---|---|
+| `consumidor_dbt` | `item_sem_cabecalho`: item cujo `order_id` não existe no cabeçalho | 80 itens de 49 pedidos |
+| `produtor_pyspark` | Motivo gravado pelo PySpark em `silver.tabelas_invalidas`, deduplicado | 1 região (`XX`) |
+
+Garantias: `unique_combination` em (entidade, regra, chave) e reconciliação dos itens órfãos com `silver.tabelas_orfas`
+deduplicada (`assert_quarentena_reconcilia_orfaos`). Por ser derivada do estado atual, a view é idempotente: reexecutar
+não duplica, e um item sai da quarentena quando o cabeçalho dele aparece.
+
 ## Próximas fases
 
 | Fase | Entrega |
 |---|---|
-| F2 | `quarentena_registros` no dbt, idempotente, reconciliada com as tabelas de quarentena da silver deduplicadas |
 | F3 | Eventos append-only da quarentena (QUARENTENADO, ELEGIVEL, REPROCESSADO, REJEITADO, EXCECAO_APROVADA) |
 | F4 | Reprocessamento de itens órfãos quando o cabeçalho chega, provado com seed de cabeçalho tardio no target dev |
 | F5 | Agente lê a quarentena como fonte de investigação, sem permissão de liberação |

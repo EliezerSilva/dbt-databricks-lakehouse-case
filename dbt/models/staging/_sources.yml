@@ -133,6 +133,14 @@ sources:
             data_tests:
               - not_null
 
+  - name: pyspark_quarentena
+    description: Quarentena gravada pelo pipeline PySpark na silver (somente leitura). Append por execucao, com duplicatas.
+    database: workspace
+    schema: "{{ var('silver_schema', 'silver') }}"
+    tables:
+      - name: tabelas_invalidas
+      - name: tabelas_orfas
+
   - name: pyspark_gold
     description: Gold PySpark original, baseline de reconciliacao (somente leitura).
     database: workspace
