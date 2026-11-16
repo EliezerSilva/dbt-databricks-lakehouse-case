@@ -1,6 +1,6 @@
 -- Lakehouse Federation do sistema legado (PostgreSQL externo).
 -- A conexao guarda host, usuario e senha no Unity Catalog; a senha nunca entra no repositorio.
--- Criacao e rotacao de senha: scripts/federacao_conexao.sh (le a connection string da area de transferencia).
+-- Criacao e rotacao de senha: scripts/federacao_conexao.sh (le o .env do provedor e recria conexao e catalogo).
 
 -- Equivalente SQL da conexao (valores entre <> preenchidos so no workspace):
 -- CREATE CONNECTION legado_pg TYPE postgresql
