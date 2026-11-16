@@ -254,6 +254,9 @@ models:
 
   - name: fato_pedidos
     description: Fato de itens de pedido (1 linha por item com cabecalho). Paridade com workspace.gold.fato_pedidos.
+    config:
+      contract:
+        enforced: true
     data_tests:
       - unique_combination:
           arguments:
@@ -264,10 +267,13 @@ models:
             columns: [order_id, item_seq, sk_cliente, sk_produto, sk_canal, sk_regiao, sk_vendedor, sk_data_pedido, sk_data_prevista, quantidade, valor_unitario, valor_item, receita_liquida_item, valor_bruto_pedido, valor_desconto_pedido, valor_liquido_pedido, custo_entrega, tempo_entrega_dias, status_order, item_status, status_entrega, flag_cancelado, flag_atrasado, dias_atraso, flag_tem_ocorrencia, qtd_ocorrencias, flag_cancel_request, flag_devolucao, data_pedido, data_prevista_entrega, data_envio, data_entrega_real, order_source]
     columns:
       - name: order_id
+        data_type: string
         data_tests: [not_null]
       - name: item_seq
+        data_type: int
         data_tests: [not_null]
       - name: sk_cliente
+        data_type: string
         data_tests:
           - not_null:
               config:
@@ -277,6 +283,7 @@ models:
                 to: ref('dim_cliente')
                 field: sk_cliente
       - name: sk_produto
+        data_type: string
         data_tests:
           - not_null:
               config:
@@ -285,16 +292,8 @@ models:
               arguments:
                 to: ref('dim_produto')
                 field: sk_produto
-      - name: sk_vendedor
-        data_tests:
-          - not_null:
-              config:
-                severity: warn
-          - relationships:
-              arguments:
-                to: ref('dim_vendedor')
-                field: sk_vendedor
       - name: sk_canal
+        data_type: string
         data_tests:
           - not_null:
               config:
@@ -304,6 +303,7 @@ models:
                 to: ref('dim_canal')
                 field: sk_canal
       - name: sk_regiao
+        data_type: string
         data_tests:
           - not_null:
               config:
@@ -312,7 +312,18 @@ models:
               arguments:
                 to: ref('dim_regiao')
                 field: sk_regiao
+      - name: sk_vendedor
+        data_type: string
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - relationships:
+              arguments:
+                to: ref('dim_vendedor')
+                field: sk_vendedor
       - name: sk_data_pedido
+        data_type: int
         data_tests:
           - not_null:
               config:
@@ -321,47 +332,145 @@ models:
               arguments:
                 to: ref('dim_data')
                 field: sk_data
+      - name: sk_data_prevista
+        data_type: int
+      - name: quantidade
+        data_type: double
+      - name: valor_unitario
+        data_type: double
+      - name: valor_item
+        data_type: double
+      - name: receita_liquida_item
+        data_type: double
+      - name: valor_bruto_pedido
+        data_type: double
+      - name: valor_desconto_pedido
+        data_type: double
+      - name: valor_liquido_pedido
+        data_type: double
+      - name: custo_entrega
+        data_type: string
+        data_tests:
+          - castable_to_double:
+              config:
+                severity: warn
+      - name: tempo_entrega_dias
+        data_type: int
+      - name: status_order
+        data_type: string
+      - name: item_status
+        data_type: string
+      - name: status_entrega
+        data_type: string
       - name: flag_cancelado
+        data_type: int
         data_tests:
           - accepted_values:
               arguments:
                 values: [0, 1]
                 quote: false
       - name: flag_atrasado
+        data_type: int
         data_tests:
           - accepted_values:
               arguments:
                 values: [0, 1]
                 quote: false
+      - name: dias_atraso
+        data_type: int
       - name: flag_tem_ocorrencia
+        data_type: int
         data_tests:
           - accepted_values:
               arguments:
                 values: [0, 1]
                 quote: false
+      - name: qtd_ocorrencias
+        data_type: bigint
       - name: flag_cancel_request
+        data_type: int
         data_tests:
           - accepted_values:
               arguments:
                 values: [0, 1]
                 quote: false
       - name: flag_devolucao
+        data_type: int
         data_tests:
           - accepted_values:
               arguments:
                 values: [0, 1]
                 quote: false
-      - name: custo_entrega
-        data_tests:
-          - castable_to_double:
-              config:
-                severity: warn
+      - name: data_pedido
+        data_type: date
+      - name: data_prevista_entrega
+        data_type: date
+      - name: data_envio
+        data_type: timestamp
+      - name: data_entrega_real
+        data_type: timestamp
+      - name: order_source
+        data_type: string
+      - name: processing_timestamp
+        data_type: timestamp
 
   - name: itens_sem_cabecalho
     description: Itens cujo order_id nao existe no cabecalho (orfaos). View idempotente.
 
   - name: fct_pedidos
     description: Pedidos (1 linha por pedido), agregados da fato_pedidos. Fonte da Metric View mv_pedidos.
+    config:
+      contract:
+        enforced: true
     columns:
       - name: order_id
+        data_type: string
         data_tests: [unique, not_null]
+      - name: sk_cliente
+        data_type: string
+      - name: sk_canal
+        data_type: string
+      - name: sk_regiao
+        data_type: string
+      - name: sk_vendedor
+        data_type: string
+      - name: sk_data_pedido
+        data_type: int
+      - name: status_order
+        data_type: string
+      - name: status_entrega
+        data_type: string
+      - name: valor_bruto_pedido
+        data_type: double
+      - name: valor_desconto_pedido
+        data_type: double
+      - name: valor_liquido_pedido
+        data_type: double
+      - name: custo_entrega
+        data_type: string
+      - name: tempo_entrega_dias
+        data_type: int
+      - name: dias_atraso
+        data_type: int
+      - name: flag_atrasado
+        data_type: int
+      - name: flag_tem_ocorrencia
+        data_type: int
+      - name: qtd_ocorrencias
+        data_type: bigint
+      - name: flag_cancel_request
+        data_type: int
+      - name: flag_devolucao
+        data_type: int
+      - name: flag_cancelado_algum
+        data_type: int
+      - name: flag_pedido_cancelado
+        data_type: int
+      - name: qtd_itens
+        data_type: bigint
+      - name: valor_itens
+        data_type: double
+      - name: receita_liquida
+        data_type: double
+      - name: data_pedido
+        data_type: date

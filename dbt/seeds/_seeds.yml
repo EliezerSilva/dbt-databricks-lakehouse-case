@@ -16,4 +16,11 @@ seeds:
             warn_if: "!=2"
 
   - name: fixture_reconcilia_baseline
-    description: Fixture de regressao do reconciles_with. Linhas (1, a) e (2, b).
+    description: Fixture de regressao do reconciles_with e do contrato_schema. Linhas (1, a) e (2, b).
+    data_tests:
+      - contrato_schema:
+          arguments:
+            colunas: {id: bigint, valor: int, coluna_removida: string}
+          config:
+            error_if: "!=2"
+            warn_if: "!=2"

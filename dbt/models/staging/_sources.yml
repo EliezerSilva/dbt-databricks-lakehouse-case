@@ -2,11 +2,22 @@ version: 2
 
 sources:
   - name: silver
-    description: Silver PySpark original (somente leitura).
+    description: Silver PySpark original (somente leitura). Produtor do contrato de dados consumido pelo dbt.
+    config:
+      meta:
+        contrato_versao: 1
+        produtor: pipeline PySpark (databricks-lakehouse-case), schema silver
+        consumidor: dbt staging
+        sla_declarado: carga diaria; nao verificado por freshness (fontes estaticas desde 2026-05)
+        politica_mudanca: coluna nova permitida; remocao ou troca de tipo quebra o contrato
     database: workspace
     schema: "{{ var('silver_schema', 'silver') }}"
     tables:
       - name: silver_canais
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {id_canal: string, nome_canal: string, tipo_canal: string, ativo: boolean, processing_timestamp: timestamp}
         columns:
           - name: id_canal
             data_tests:
@@ -16,6 +27,10 @@ sources:
                     severity: warn
 
       - name: silver_regioes
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {regional_code: string, regional_name: string, state: string, manager_name: string, processing_timestamp: timestamp}
         description: Deduplicada na Silver PySpark (row_number por regional_code, preferindo state = SP).
         columns:
           - name: regional_code
@@ -24,6 +39,10 @@ sources:
               - unique
 
       - name: silver_vendedores
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {seller_id: string, seller_name: string, canal_id: string, regional_code: string, hire_date: date, status: string, processing_timestamp: timestamp}
         description: Sem deduplicacao na Silver PySpark; seller_id duplicado em V004 e V008.
         columns:
           - name: seller_id
@@ -34,6 +53,10 @@ sources:
                     severity: warn
 
       - name: silver_clientes
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {customer_id: string, nome_cliente: string, segmento: string, porte: string, cidade: string, estado: string, email: string, data_cadastro: date, status_cliente: string, updated_at: timestamp, processing_timestamp: timestamp}
         description: Sem deduplicacao na Silver PySpark; customer_id duplicado em C0010, C0025 e c0051.
         columns:
           - name: customer_id
@@ -49,6 +72,10 @@ sources:
                     severity: warn
 
       - name: silver_produtos
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {product_id: string, product_name: string, category: string, subcategory: string, family: string, list_price: string, currency: string, tags_csv: string, status: string, updated_at: timestamp, processing_timestamp: timestamp}
         description: Sem deduplicacao na Silver PySpark; product_id duplicado em P0006.
         columns:
           - name: product_id
@@ -64,6 +91,10 @@ sources:
                     severity: warn
 
       - name: silver_pedidos_cabecalho
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {order_id: string, customer_code: string, seller_id: string, order_date: date, promised_date: date, status_order: string, gross_amount: double, discount_amount: double, net_amount: double, last_update: timestamp, order_source: string, order_priority: string, processing_timestamp: timestamp}
         columns:
           - name: order_id
             data_tests:
@@ -73,18 +104,30 @@ sources:
                     severity: warn
 
       - name: silver_logistica
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {delivery_id: string, order_ref: string, carrier_name: string, carrier_mode: string, delivery_status: string, dest_state: string, dest_city: string, cost: string, shipped_at: timestamp, delivered_at: timestamp, promised_date: date, flag_atrasado: int, dias_atraso: int, tempo_entrega_dias: int, processing_timestamp: timestamp}
         columns:
           - name: delivery_id
             data_tests:
               - not_null
 
       - name: silver_pedidos_itens
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {order_id: string, item_seq: int, product_code: string, quantity: double, unit_price: double, total_item: double, item_status: string, processing_timestamp: timestamp}
         columns:
           - name: order_id
             data_tests:
               - not_null
 
       - name: silver_atendimento_ocorrencias
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {ticket_id: string, order_id: string, customer_code: string, event_type: string, severity: string, status: string, created_at: timestamp, processing_timestamp: timestamp}
         columns:
           - name: ticket_id
             data_tests:
