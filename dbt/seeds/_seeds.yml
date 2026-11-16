@@ -24,3 +24,17 @@ seeds:
           config:
             error_if: "!=2"
             warn_if: "!=2"
+
+  - name: cabecalhos_tardios
+    description: >
+      SIMULACAO. Cabecalho sintetico do pedido O00021, cujos itens estao em quarentena por falta de cabecalho.
+      So entra no stg_pedidos_cabecalho com a variavel simular_cabecalho_tardio, e nunca no schema dbt (ambiente real).
+    config:
+      column_types:
+        order_date: date
+        promised_date: date
+        gross_amount: double
+        discount_amount: double
+        net_amount: double
+        last_update: timestamp
+        processing_timestamp: timestamp

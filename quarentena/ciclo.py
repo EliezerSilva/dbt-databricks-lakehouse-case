@@ -7,40 +7,53 @@ QUARENTENADO, ELEGIVEL, REPROCESSADO = "QUARENTENADO", "ELEGIVEL", "REPROCESSADO
 REJEITADO, EXCECAO_APROVADA = "REJEITADO", "EXCECAO_APROVADA"
 TERMINAIS = (REJEITADO, EXCECAO_APROVADA)
 
-DDL = """CREATE TABLE IF NOT EXISTS workspace.dbt_quarentena.quarentena_eventos (
+PREFIXOS = ("dbt", "dbt_sim")
+
+DDL_T = """CREATE TABLE IF NOT EXISTS workspace.{p}_quarentena.quarentena_eventos (
     seq BIGINT, entidade STRING, regra STRING, origem STRING, chave STRING, evento STRING,
     status_resultante STRING, ator STRING, nota STRING, criado_em TIMESTAMP
 ) COMMENT 'Ciclo de vida da quarentena (append-only) - o estado atual e o ultimo evento por entidade, regra e chave'"""
 
 COLUNAS = ("seq", "entidade", "regra", "origem", "chave", "evento", "status_resultante", "ator", "nota")
 
-ESTADO = """
+ESTADO_T = """
 SELECT entidade, regra, chave, origem, status_resultante AS status
 FROM (
     SELECT *, row_number() OVER (PARTITION BY entidade, regra, chave ORDER BY seq DESC) AS rn
-    FROM workspace.dbt_quarentena.quarentena_eventos
+    FROM workspace.{p}_quarentena.quarentena_eventos
 )
 WHERE rn = 1
 """
 
-ATUAIS = "SELECT entidade, regra, chave, origem FROM workspace.dbt_quarentena.quarentena_registros"
+ATUAIS_T = "SELECT entidade, regra, chave, origem FROM workspace.{p}_quarentena.quarentena_registros"
 
-ALVO = """
-SELECT 'pedidos_itens' AS entidade, concat(order_id, '-', cast(item_seq AS STRING)) AS chave FROM workspace.dbt_gold.fato_pedidos
+ALVO_T = """
+SELECT 'pedidos_itens' AS entidade, concat(order_id, '-', cast(item_seq AS STRING)) AS chave FROM workspace.{p}_gold.fato_pedidos
 UNION ALL
-SELECT 'regioes' AS entidade, regional_code AS chave FROM workspace.dbt_gold.dim_regiao
+SELECT 'regioes' AS entidade, regional_code AS chave FROM workspace.{p}_gold.dim_regiao
 """
 
-RESUMO = """
+RESUMO_T = """
 SELECT entidade, regra, status_resultante AS status, count(*) AS registros
 FROM (
     SELECT *, row_number() OVER (PARTITION BY entidade, regra, chave ORDER BY seq DESC) AS rn
-    FROM workspace.dbt_quarentena.quarentena_eventos
+    FROM workspace.{p}_quarentena.quarentena_eventos
 )
 WHERE rn = 1
 GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3
 """
+
+
+def sql(prefixo="dbt"):
+    if prefixo not in PREFIXOS:
+        raise ValueError(f"prefixo invalido: {prefixo}")
+    return {nome: t.format(p=prefixo) for nome, t in
+            (("DDL", DDL_T), ("ESTADO", ESTADO_T), ("ATUAIS", ATUAIS_T), ("ALVO", ALVO_T), ("RESUMO", RESUMO_T))}
+
+
+_PADRAO = sql("dbt")
+DDL, ESTADO, ATUAIS, ALVO, RESUMO = (_PADRAO[n] for n in ("DDL", "ESTADO", "ATUAIS", "ALVO", "RESUMO"))
 
 
 def _ev(chave, origem, evento, status, ator="sincronizacao", nota=None):
@@ -83,8 +96,9 @@ def acao_humana(estado, chave, acao, ator, nota):
     raise ValueError(f"{acao} nao permitido a partir de {e['status']}")
 
 
-def gravar(db, eventos, lote=10):
-    db.write(DDL)
+def gravar(db, eventos, lote=10, prefixo="dbt"):
+    q = sql(prefixo)
+    db.write(q["DDL"])
     base = int(time.time() * 1000) * 1000
     for i in range(0, len(eventos), lote):
         parte, params, linhas = eventos[i:i + lote], {}, []
@@ -92,13 +106,14 @@ def gravar(db, eventos, lote=10):
             ev = dict(ev, seq=(base + i + j, "BIGINT"))
             linhas.append("(" + ", ".join(f":{c}_{j}" for c in COLUNAS) + ", current_timestamp())")
             params.update({f"{c}_{j}": ev[c] for c in COLUNAS})
-        db.write("INSERT INTO workspace.dbt_quarentena.quarentena_eventos VALUES " + ", ".join(linhas), params)
+        db.write(f"INSERT INTO workspace.{prefixo}_quarentena.quarentena_eventos VALUES " + ", ".join(linhas), params)
     return len(eventos)
 
 
-def carregar(db):
-    db.write(DDL)
-    estado = {(r["entidade"], r["regra"], r["chave"]): {"status": r["status"], "origem": r["origem"]} for r in db.read(ESTADO)}
+def carregar(db, prefixo="dbt"):
+    q = sql(prefixo)
+    db.write(q["DDL"])
+    estado = {(r["entidade"], r["regra"], r["chave"]): {"status": r["status"], "origem": r["origem"]} for r in db.read(q["ESTADO"])}
     return estado
 
 
@@ -111,19 +126,22 @@ def main(argv=None):
     ap.add_argument("--chave")
     ap.add_argument("--ator")
     ap.add_argument("--nota")
+    ap.add_argument("--prefixo", default="dbt", choices=PREFIXOS,
+                    help="dbt = ambiente real; dbt_sim = simulacao de reprocessamento (scripts/simular_cabecalho_tardio.sh)")
     ap.add_argument("--profile", default="dbt-lakehouse-free")
     ap.add_argument("--warehouse", default="6ad31e4709e166fb")
     a = ap.parse_args(argv)
     db = Db(a.profile, a.warehouse)
-    estado = carregar(db)
+    q = sql(a.prefixo)
+    estado = carregar(db, a.prefixo)
     if a.acao == "listar":
-        print(json.dumps(db.read(RESUMO), ensure_ascii=False, indent=2, default=str))
+        print(json.dumps(db.read(q["RESUMO"]), ensure_ascii=False, indent=2, default=str))
         return 0
     if a.acao == "sincronizar":
-        atuais = {(r["entidade"], r["regra"], r["chave"]): r["origem"] for r in db.read(ATUAIS)}
-        alvo = {(r["entidade"], r["chave"]) for r in db.read(ALVO)} if any(k not in atuais for k in estado) else set()
+        atuais = {(r["entidade"], r["regra"], r["chave"]): r["origem"] for r in db.read(q["ATUAIS"])}
+        alvo = {(r["entidade"], r["chave"]) for r in db.read(q["ALVO"])} if any(k not in atuais for k in estado) else set()
         eventos = transicoes(estado, atuais, alvo)
-        n = gravar(db, eventos)
+        n = gravar(db, eventos, prefixo=a.prefixo)
         resumo = {}
         for ev in eventos:
             resumo[ev["evento"]] = resumo.get(ev["evento"], 0) + 1
@@ -135,7 +153,7 @@ def main(argv=None):
         ev = acao_humana(estado, (a.entidade, a.regra, a.chave), a.acao, a.ator, a.nota)
     except ValueError as e:
         sys.exit(f"PARAR: {e}")
-    gravar(db, [ev])
+    gravar(db, [ev], prefixo=a.prefixo)
     print(f"{ev['evento']}: {a.entidade} {a.regra} {a.chave}")
     return 0
 

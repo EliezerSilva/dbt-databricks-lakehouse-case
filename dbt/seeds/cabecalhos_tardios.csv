@@ -1,0 +1,2 @@
+order_id,customer_code,seller_id,order_date,promised_date,status_order,gross_amount,discount_amount,net_amount,last_update,order_source,order_priority,processing_timestamp
+O00021,C0002,V036,2025-03-10,2025-03-17,FATURADO,4399.15,0.0,4399.15,2025-03-18 00:00:00,ERP,medium,2026-11-16 00:00:00
