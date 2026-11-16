@@ -84,6 +84,37 @@ class TestGuardas(unittest.TestCase):
                 check_write(sql)
 
 
+class TestPrefixo(unittest.TestCase):
+    def test_simulacao_passa_nas_guardas(self):
+        q = ciclo.sql("dbt_sim")
+        check_write(q["DDL"])
+        check_write("INSERT INTO workspace.dbt_sim_quarentena.quarentena_eventos VALUES (:seq_0)")
+        for n in ("ESTADO", "ATUAIS", "ALVO", "RESUMO"):
+            check_read(q[n])
+            self.assertIn("dbt_sim_", q[n])
+            self.assertNotIn("workspace.dbt_quarentena", q[n])
+
+    def test_prefixo_fora_da_lista(self):
+        with self.assertRaises(ValueError):
+            ciclo.sql("dbt_gold")
+
+    def test_padrao_continua_no_ambiente_real(self):
+        self.assertIn("workspace.dbt_quarentena.quarentena_eventos", ciclo.DDL)
+        self.assertIn("workspace.dbt_gold.fato_pedidos", ciclo.ALVO)
+
+    def test_gravacao_na_simulacao(self):
+        class FakeDb:
+            def __init__(self):
+                self.sqls = []
+
+            def write(self, sql, params=None):
+                self.sqls.append(sql)
+
+        db = FakeDb()
+        ciclo.gravar(db, [ciclo._ev(K, "consumidor_dbt", "QUARENTENADO", "QUARENTENADO")], prefixo="dbt_sim")
+        self.assertTrue(all("dbt_sim_quarentena" in s for s in db.sqls))
+
+
 class TestGravacao(unittest.TestCase):
     def test_lotes(self):
         class FakeDb:

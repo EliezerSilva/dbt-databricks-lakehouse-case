@@ -67,9 +67,25 @@ python -m quarentena.ciclo listar
 python -m quarentena.ciclo rejeitar --entidade regioes --regra "active_flag=0 ou regional_name nulo" --chave XX --ator eli --nota "..."
 ```
 
+## Reprocessamento de órfãos (F4)
+
+Um item órfão só sai da quarentena quando o cabeçalho dele chega; nenhuma aprovação o coloca na fato. Como as fontes
+estão estáticas, a chegada é simulada em schemas isolados (`dbt_sim_staging`, `dbt_sim_gold`, `dbt_sim_quarentena`):
+
+| Peça | Papel |
+|---|---|
+| `seeds/cabecalhos_tardios.csv` | Cabeçalho sintético do pedido O00021 (3 itens em quarentena) |
+| `stg_pedidos_cabecalho` | Inclui o seed só com `simular_cabecalho_tardio`; o build falha se a variável for usada no schema `dbt` |
+| `scripts/simular_cabecalho_tardio.sh` | `sim_dbt`: roda o dbt com um profile temporário que só troca o schema para `dbt_sim` |
+| `python -m quarentena.ciclo --prefixo dbt_sim` | Ciclo de eventos na simulação; a guarda de escrita aceita só `dbt_sim_quarentena.quarentena_eventos` além da tabela real |
+
+Sequência provada: sincronização sem cabeçalho (81 QUARENTENADO) → build com o cabeçalho tardio (os itens do O00021 entram
+na `fato_pedidos` e saem da quarentena) → sincronização (ELEGIVEL e REPROCESSADO para os 3 itens) → nova sincronização sem
+eventos → novo build sem duplicar a fato. As reconciliações com o baseline ficam fora da simulação, onde a fato tem itens a
+mais de propósito.
+
 ## Próximas fases
 
 | Fase | Entrega |
 |---|---|
-| F4 | Reprocessamento de itens órfãos quando o cabeçalho chega, provado com seed de cabeçalho tardio no target dev |
 | F5 | Agente lê a quarentena como fonte de investigação, sem permissão de liberação |
