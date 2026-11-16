@@ -44,10 +44,32 @@ Garantias: `unique_combination` em (entidade, regra, chave) e reconciliação do
 deduplicada (`assert_quarentena_reconcilia_orfaos`). Por ser derivada do estado atual, a view é idempotente: reexecutar
 não duplica, e um item sai da quarentena quando o cabeçalho dele aparece.
 
+## Ciclo de vida da quarentena (F3)
+
+Eventos append-only em `workspace.dbt_quarentena.quarentena_eventos`; o estado atual de cada (entidade, regra, chave) é o
+último evento. A escrita passa pela mesma guarda do agente (`agent/db.py`), restrita a essa tabela.
+
+| Evento | Quem gera | Quando |
+|---|---|---|
+| QUARENTENADO | sincronização | registro aparece em `quarentena_registros` pela primeira vez |
+| ELEGIVEL | sincronização | registro saiu da quarentena (a regra deixou de ser violada) |
+| REPROCESSADO | sincronização | registro elegível presente na tabela de destino (`fato_pedidos`, `dim_regiao`) |
+| REINCIDENTE | sincronização | registro elegível ou reprocessado volta a violar a regra (status QUARENTENADO) |
+| REJEITADO | humano, com ator e nota | descarte definitivo, a partir de QUARENTENADO ou ELEGIVEL |
+| EXCECAO_APROVADA | humano, com ator e nota | aceito fora do destino, a partir de QUARENTENADO |
+
+REJEITADO e EXCECAO_APROVADA são terminais: a sincronização não os altera. Nenhum evento libera um item órfão para a fato
+sem cabeçalho; a liberação acontece porque o dado de origem chegou, não por aprovação.
+
+```bash
+python -m quarentena.ciclo sincronizar
+python -m quarentena.ciclo listar
+python -m quarentena.ciclo rejeitar --entidade regioes --regra "active_flag=0 ou regional_name nulo" --chave XX --ator eli --nota "..."
+```
+
 ## Próximas fases
 
 | Fase | Entrega |
 |---|---|
-| F3 | Eventos append-only da quarentena (QUARENTENADO, ELEGIVEL, REPROCESSADO, REJEITADO, EXCECAO_APROVADA) |
 | F4 | Reprocessamento de itens órfãos quando o cabeçalho chega, provado com seed de cabeçalho tardio no target dev |
 | F5 | Agente lê a quarentena como fonte de investigação, sem permissão de liberação |
