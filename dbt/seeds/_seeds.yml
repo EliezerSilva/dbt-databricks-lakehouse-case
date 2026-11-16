@@ -1,0 +1,19 @@
+version: 2
+
+seeds:
+  - name: reconciliacao_excecoes
+    description: Divergencias intencionais em relacao ao baseline PySpark (modelo, chave, motivo).
+
+  - name: fixture_reconcilia_modelo
+    description: Fixture de regressao do reconciles_with. Linha (1, a) duplicada.
+    data_tests:
+      - reconciles_with:
+          arguments:
+            compare_model: ref('fixture_reconcilia_baseline')
+            columns: [id, valor]
+          config:
+            error_if: "!=2"
+            warn_if: "!=2"
+
+  - name: fixture_reconcilia_baseline
+    description: Fixture de regressao do reconciles_with. Linhas (1, a) e (2, b).
