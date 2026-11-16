@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: quarentena_registros
+    description: >
+      Quarentena idempotente do contrato de dados. Uma linha por (entidade, regra, chave).
+      Os itens orfaos saem automaticamente quando o cabecalho chega; o ciclo de liberacao fica na F3.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [entidade, regra, chave]
+    columns:
+      - name: entidade
+        data_tests: [not_null]
+      - name: regra
+        data_tests: [not_null]
+      - name: origem
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [consumidor_dbt, produtor_pyspark]
+      - name: chave
+        data_tests: [not_null]
+      - name: payload
+        data_tests: [not_null]
