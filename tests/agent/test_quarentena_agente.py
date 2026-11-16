@@ -94,5 +94,30 @@ class TestEstadoQuarentena(unittest.TestCase):
         self.assertEqual(set(nomes), set(investigate._PARAMS))
 
 
+class TestQuarentenaNoDetalhe(unittest.TestCase):
+    def test_estado_embutido_so_onde_atende(self):
+        f, db = ferramentas([linha("O00099", "O00099-1", "QUARENTENADO")])
+        out = f.executar("detalhar_incidente", {"incidente_id": "i1"})
+        self.assertEqual(out["quarentena"]["registros"],
+                         [{"regra": "item_sem_cabecalho", "status": "QUARENTENADO", "registros": 1}])
+        self.assertEqual(len(db.consultas), 1)
+        for iid in ("i3", "i4"):
+            f, db = ferramentas([])
+            self.assertNotIn("quarentena", f.executar("detalhar_incidente", {"incidente_id": iid}))
+            self.assertEqual(db.consultas, [])
+
+    def test_sem_quarentena_fora_do_original(self):
+        for amb in ("dev", "cenarios"):
+            f, db = ferramentas([], amb)
+            self.assertNotIn("quarentena", f.executar("detalhar_incidente", {"incidente_id": "i1"}))
+            self.assertEqual(db.consultas, [])
+
+    def test_falha_de_leitura_nao_derruba_o_detalhe(self):
+        f, _ = ferramentas([])
+        f.db.read = lambda sql, params=None: (_ for _ in ()).throw(RuntimeError("x"))
+        out = f.executar("detalhar_incidente", {"incidente_id": "i1"})
+        self.assertEqual(out["quarentena"], {"erro": "falha ao ler a quarentena"})
+
+
 if __name__ == "__main__":
     unittest.main()

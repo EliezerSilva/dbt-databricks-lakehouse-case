@@ -86,12 +86,14 @@ mais de propósito.
 
 O seed `cabecalhos_tardios` também é carregado nos builds do target `dev` (tabela `dbt_staging.cabecalhos_tardios`, 1
 linha). Sem a variável ele não entra no `stg_pedidos_cabecalho`, e a variável é bloqueada no schema `dbt`; a fato real
-não muda.
+não muda. Os schemas `dbt_sim_*` são descartáveis: foram apagados depois da prova e o `sim_dbt` os recria.
 
 ## Agente lendo a quarentena (F5)
 
 A ferramenta `estado_quarentena` do agente consulta `dbt_quarentena.quarentena_registros` e o último evento de
 `dbt_quarentena.quarentena_eventos` para as chaves do incidente (órfãos: `order_id`; regiões inválidas: `regional_code`) e
-devolve a contagem por regra e status e as chaves que não estão na quarentena. A consulta passa pela guarda de leitura
+devolve a contagem por regra e status e as chaves que não estão na quarentena. Como o LLM não escolhia a ferramenta
+por conta própria, o `detalhar_incidente` já embute esse estado (campo `quarentena`) nesses incidentes; a ferramenta
+continua disponível para consulta avulsa. A consulta passa pela guarda de leitura
 (`SELECT`/`WITH` únicos); nenhuma escrita nova foi aberta, e liberar, rejeitar ou aprovar exceção continua exclusivo de
 `quarentena.ciclo` com ator humano.
