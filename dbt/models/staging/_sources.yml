@@ -133,6 +133,33 @@ sources:
             data_tests:
               - not_null
 
+  - name: legado
+    description: Sistema legado externo (PostgreSQL) exposto via Lakehouse Federation. Nada e copiado; a consulta vai ao banco de origem.
+    database: "{{ var('legado_catalog', 'legado_pg') }}"
+    schema: public
+    config:
+      tags: [federacao]
+      meta:
+        contrato_versao: 1
+        produtor: banco PostgreSQL externo, conexao Unity Catalog legado_pg
+        consumidor: dbt staging
+        politica_mudanca: coluna nova permitida; remocao ou troca de tipo quebra o contrato
+    tables:
+      - name: metas_comerciais
+        description: Meta de receita por canal e mes.
+        data_tests:
+          - contrato_schema:
+              arguments:
+                colunas: {canal_id: 'varchar(10)', ano_mes: 'char(7)', meta_valor: 'decimal(14,2)'}
+          - unique_combination:
+              arguments:
+                columns: [canal_id, ano_mes]
+        columns:
+          - name: canal_id
+            data_tests: [not_null]
+          - name: meta_valor
+            data_tests: [not_null]
+
   - name: pyspark_quarentena
     description: Quarentena gravada pelo pipeline PySpark na silver (somente leitura). Append por execucao, com duplicatas.
     database: workspace
