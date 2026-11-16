@@ -21,6 +21,7 @@ jobs:
           cache-dependency-path: requirements-ci.txt
       - run: pip install -r requirements-ci.txt
       - run: python -m unittest discover -s tests/agent -v
+      - run: python -m unittest discover -s tests/quarentena -v
 
   dbt:
     name: dbt - parse e contagem de testes

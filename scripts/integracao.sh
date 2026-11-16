@@ -4,6 +4,7 @@ cd "$(dirname "$0")/.."
 
 echo "1/4 testes do agente"
 python -m unittest discover -s tests/agent
+python -m unittest discover -s tests/quarentena
 
 echo "2/4 dbt build (target dev)"
 (cd dbt && dbt build)

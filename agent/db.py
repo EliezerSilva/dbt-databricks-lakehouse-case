@@ -4,7 +4,12 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import StatementParameterListItem, StatementState
 
 READ_PREFIXES = ("SELECT ", "WITH ")
-WRITE_PREFIXES = ("INSERT INTO WORKSPACE.AGENT.", "CREATE TABLE IF NOT EXISTS WORKSPACE.AGENT.")
+WRITE_PREFIXES = (
+    "INSERT INTO WORKSPACE.AGENT.",
+    "CREATE TABLE IF NOT EXISTS WORKSPACE.AGENT.",
+    "INSERT INTO WORKSPACE.DBT_QUARENTENA.QUARENTENA_EVENTOS ",
+    "CREATE TABLE IF NOT EXISTS WORKSPACE.DBT_QUARENTENA.QUARENTENA_EVENTOS ",
+)
 
 
 class GuardError(RuntimeError):
@@ -24,7 +29,7 @@ def check_read(sql):
 def check_write(sql):
     s = _norm(sql)
     if not s.startswith(WRITE_PREFIXES) or ";" in s:
-        raise GuardError("escrita permitida apenas em workspace.agent (INSERT/CREATE TABLE IF NOT EXISTS)")
+        raise GuardError("escrita permitida apenas em workspace.agent e em dbt_quarentena.quarentena_eventos (INSERT/CREATE TABLE IF NOT EXISTS)")
 
 
 def _param(name, v):
