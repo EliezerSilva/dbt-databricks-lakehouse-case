@@ -414,6 +414,23 @@ models:
       - name: processing_timestamp
         data_type: timestamp
 
+  - name: meta_vs_realizado
+    description: Meta do sistema legado (federado) x receita liquida realizada, por canal e mes.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [canal_id, ano_mes]
+    columns:
+      - name: canal_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_canal')
+                field: canal_id
+      - name: meta_valor
+        data_tests: [not_null]
+
   - name: itens_sem_cabecalho
     description: Itens cujo order_id nao existe no cabecalho (orfaos). View idempotente.
 
