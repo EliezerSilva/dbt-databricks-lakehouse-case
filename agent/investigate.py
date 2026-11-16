@@ -10,7 +10,8 @@ MAX_PASSOS = 4
 SYSTEM = (
     "Você investiga um incidente de qualidade de dados seguindo o procedimento: 1) detalhar_incidente; "
     "2) verificar na fonte com amostrar_registros; 3) se houver arquivos relacionados, historico_cargas; "
-    "4) se houver domínio afetado, dominio_valores; 5) se houver dimensão afetada, impacto_metricas. "
+    "4) se houver domínio afetado, dominio_valores; 5) se houver dimensão afetada, impacto_metricas; "
+    "6) em incidentes de órfãos ou de regiões inválidas, estado_quarentena. "
     "Pule os passos que não se aplicam; no máximo 4 chamadas. "
     "Use o incidente_id recebido. Se o alerta indicar reincidência, mencione-a na explicação. "
     "A classificação recebida é definitiva e não pode ser alterada. O contexto inicial é só o alerta: "
@@ -52,6 +53,12 @@ TOOLS = [
         "parameters": {"type": "object", "properties": {
             "dimensao": {"type": "string", "enum": list(DIMENSOES)}},
             "required": ["dimensao"]}}},
+    {"type": "function", "function": {
+        "name": "estado_quarentena",
+        "description": "Estado dos registros do incidente na quarentena do consumidor dbt: contagem por regra e status "
+                       "(último evento do ciclo de vida) e chaves que não estão na quarentena. Somente leitura.",
+        "parameters": {"type": "object", "properties": {"incidente_id": {"type": "string"}},
+                       "required": ["incidente_id"]}}},
 ]
 
 _PARAMS = {
@@ -60,6 +67,7 @@ _PARAMS = {
     "historico_cargas": {"source_file"},
     "dominio_valores": {"modelo", "coluna"},
     "impacto_metricas": {"dimensao"},
+    "estado_quarentena": {"incidente_id"},
 }
 _ARQUIVO = re.compile(r"^[A-Za-z0-9_.\-]{1,80}$")
 
@@ -92,6 +100,66 @@ GROUP BY {dim}
 ORDER BY receita_liquida DESC
 LIMIT 10
 """
+
+
+QUARENTENA = {"original": "workspace.dbt_quarentena"}
+
+ESTADO_QUARENTENA = """
+WITH alvo AS (
+    SELECT explode(from_json(:chaves, 'array<string>')) AS chave_negocio
+),
+eventos AS (
+    SELECT regra, chave, status_resultante AS status, ator, cast(criado_em AS STRING) AS ultimo_evento,
+           CASE WHEN entidade = 'pedidos_itens' THEN regexp_extract(chave, '^(.+)-[0-9]+$', 1) ELSE chave END
+               AS chave_negocio,
+           row_number() OVER (PARTITION BY entidade, regra, chave ORDER BY seq DESC) AS rn
+    FROM {q}.quarentena_eventos
+    WHERE entidade = :entidade
+),
+atuais AS (
+    SELECT regra, chave, chave_negocio
+    FROM {q}.quarentena_registros
+    WHERE entidade = :entidade
+),
+registros AS (
+    SELECT coalesce(e.regra, a.regra) AS regra, coalesce(e.chave, a.chave) AS chave,
+           coalesce(e.chave_negocio, a.chave_negocio) AS chave_negocio,
+           coalesce(e.status, 'SEM_EVENTO') AS status, e.ator, e.ultimo_evento,
+           a.chave IS NOT NULL AS na_quarentena_atual
+    FROM (SELECT * FROM eventos WHERE rn = 1) e
+    FULL OUTER JOIN atuais a ON a.regra = e.regra AND a.chave = e.chave
+)
+SELECT t.chave_negocio, r.regra, r.chave, r.status, r.ator, r.ultimo_evento, r.na_quarentena_atual
+FROM alvo t
+LEFT JOIN registros r ON r.chave_negocio = t.chave_negocio
+ORDER BY t.chave_negocio, r.chave
+"""
+
+
+def _alvo_quarentena(d):
+    ev = d["evidencia"]
+    if d["fonte"] == "tabelas_orfas":
+        return "pedidos_itens", list(ev.get("chaves") or [])
+    if d["fonte"] == "tabelas_invalidas" and d["source_table"] == "silver_regioes":
+        cod = (ev.get("payload") or {}).get("regional_code")
+        return "regioes", [cod] if cod else []
+    raise ValueError("incidente sem quarentena correspondente")
+
+
+def resumir_quarentena(rows):
+    por_status, sem_registro, exemplos = {}, set(), []
+    for r in rows:
+        if r.get("chave") is None:
+            sem_registro.add(r["chave_negocio"])
+            continue
+        k = (r["regra"], r["status"])
+        por_status[k] = por_status.get(k, 0) + 1
+        if len(exemplos) < 5:
+            exemplos.append({c: r.get(c) for c in ("chave", "regra", "status", "ator", "ultimo_evento",
+                                                    "na_quarentena_atual")})
+    return {"registros": [{"regra": rg, "status": st, "registros": n} for (rg, st), n in sorted(por_status.items())],
+            "chaves_fora_da_quarentena": len(sem_registro), "exemplos_fora": sorted(sem_registro)[:5],
+            "exemplos": exemplos}
 
 
 class OrcamentoEsgotado(Exception):
@@ -158,7 +226,8 @@ class Ferramentas:
             out["dimensao_afetada"] = ev.get("dimensao")
             out["cadeia_de_atribuicao"] = ontologia.cadeia(ev.get("dimensao"))
         out["aprofundar"] = ("amostrar_registros para os registros; historico_cargas para as cargas dos arquivos "
-                             "relacionados; impacto_metricas para a distribuição da dimensão afetada")
+                             "relacionados; impacto_metricas para a distribuição da dimensão afetada; "
+                             "estado_quarentena para o ciclo de vida na quarentena")
         return out
 
     def _amostrar_registros(self, incidente_id, limite):
@@ -191,6 +260,16 @@ class Ferramentas:
         if mv is None:
             raise ValueError("camada semantica indisponivel neste ambiente")
         return {"distribuicao": self.db.read(IMPACTO.format(dim=dimensao, mv=mv))}
+
+    def _estado_quarentena(self, incidente_id):
+        q = QUARENTENA.get(self.amb)
+        if q is None:
+            raise ValueError("quarentena indisponivel neste ambiente")
+        entidade, chaves = _alvo_quarentena(self.diags[incidente_id])
+        if not chaves:
+            raise ValueError("incidente sem chaves para a quarentena")
+        rows = self.db.read(ESTADO_QUARENTENA.format(q=q), {"chaves": json.dumps(sorted(chaves)), "entidade": entidade})
+        return {"entidade": entidade, **resumir_quarentena(rows)}
 
 
 def _linhas(saida):

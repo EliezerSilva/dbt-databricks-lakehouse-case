@@ -84,8 +84,14 @@ na `fato_pedidos` e saem da quarentena) → sincronização (ELEGIVEL e REPROCES
 eventos → novo build sem duplicar a fato. As reconciliações com o baseline ficam fora da simulação, onde a fato tem itens a
 mais de propósito.
 
-## Próximas fases
+O seed `cabecalhos_tardios` também é carregado nos builds do target `dev` (tabela `dbt_staging.cabecalhos_tardios`, 1
+linha). Sem a variável ele não entra no `stg_pedidos_cabecalho`, e a variável é bloqueada no schema `dbt`; a fato real
+não muda.
 
-| Fase | Entrega |
-|---|---|
-| F5 | Agente lê a quarentena como fonte de investigação, sem permissão de liberação |
+## Agente lendo a quarentena (F5)
+
+A ferramenta `estado_quarentena` do agente consulta `dbt_quarentena.quarentena_registros` e o último evento de
+`dbt_quarentena.quarentena_eventos` para as chaves do incidente (órfãos: `order_id`; regiões inválidas: `regional_code`) e
+devolve a contagem por regra e status e as chaves que não estão na quarentena. A consulta passa pela guarda de leitura
+(`SELECT`/`WITH` únicos); nenhuma escrita nova foi aberta, e liberar, rejeitar ou aprovar exceção continua exclusivo de
+`quarentena.ciclo` com ator humano.
