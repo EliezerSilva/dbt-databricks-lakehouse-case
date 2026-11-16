@@ -56,6 +56,7 @@ A classificação permanece determinística e não pode ser alterada pelo LLM.
 | `historico_cargas` | Últimas 5 cargas de um arquivo no `ingestion_log` |
 | `dominio_valores` | Códigos válidos e sinônimos do domínio |
 | `impacto_metricas` | Receita líquida e pedidos por valor de uma dimensão, via `MEASURE()` (somente ambiente `original`) |
+| `estado_quarentena` | Contagem por regra e status (último evento) dos registros do incidente na quarentena do consumidor dbt e chaves fora dela; órfãos e regiões inválidas, somente ambiente `original`, só leitura |
 
 Controles: lista fechada de ferramentas; parâmetros validados (extras rejeitados, `incidente_id` restrito à execução,
 limite de 1 a 5, nome de arquivo por regex, domínio por enumeração); chamada rejeitada volta ao LLM como erro;
