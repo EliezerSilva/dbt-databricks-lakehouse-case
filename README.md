@@ -2,6 +2,15 @@
 
 <!-- DAB-DEV-STATUS-2026 -->
 
+## Arquitetura
+
+![Arquitetura do projeto](docs/arquitetura/arquitetura.svg)
+
+Azul: produtor PySpark do projeto original, inalterado. Verde: entregue neste projeto (consumidor dbt com contrato de
+dados, quarentena com ciclo de vida, federação com Postgres legado, agente e operação). A última faixa é o método de
+execução por gates usado para conduzir o trabalho, fora do fluxo de dados. Fonte editável:
+[`docs/arquitetura/arquitetura.excalidraw`](docs/arquitetura/arquitetura.excalidraw).
+
 ## Implantacao atual — Databricks Asset Bundles
 
 Este projeto combina PySpark, Delta Lake, Unity Catalog,
